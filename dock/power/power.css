@@ -1,0 +1,13 @@
+body {
+      background-color: black;
+      color: white;
+      font-family: monospace;
+      font-size: 2rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+      cursor: pointer;
+    }
