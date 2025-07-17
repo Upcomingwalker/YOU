@@ -41,7 +41,7 @@ Inspired by the **Nintendo Switch UI**, it merges productivity, AI intelligence,
 
 ### 🔐 Add your Gemini API key:
 
-In your JavaScript (`main.js` or equivalent):
+In your JavaScript present in ai folder :
 
 ```js
 const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
