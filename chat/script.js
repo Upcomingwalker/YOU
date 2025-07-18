@@ -4,7 +4,7 @@ let currentChatId = null;
 let connectedUsers = new Map();
 let chatHistory = new Map();
 
-const BACKEND_URL = 'https://firebase-chat-backend.vercel.app/';
+const BACKEND_URL = 'https://firebase-chat-backend.onrender.com/';
 
 class FirebaseChats {
     constructor() {
