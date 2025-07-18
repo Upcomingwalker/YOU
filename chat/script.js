@@ -363,7 +363,7 @@ function closeInfo() {
 }
 
 function openDashboard() {
-    window.location.href = 'dashboard.html';
+    window.location.href = 'index.html';
 }
 
 function connectToUser() {
