@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/x-icon" href="resources/lps.png">
+  <title>YOU - Home</title>
+  <link rel="stylesheet" href="home/style.css">
+</head>
+<body>
+  <div class="welcome-video-overlay" id="welcomeVideoOverlay">
+    <div class="welcome-video-container">
+      <video id="welcomeVideo" muted autoplay>
+        <source src="resources/welcome.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+  </div>
+
+  <div class="app-video-overlay" id="appVideoOverlay">
+    <div class="app-video-container">
+      <video id="appLoadingVideo" muted autoplay>
+        <source src="" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+    <div class="loading-text">Loading...</div>
+  </div>
+
+  <div class="main-content" id="mainContent">
+    <audio id="bgMusic" preload="auto" loop>
+      <source src="resources/bg.mp3" type="audio/mpeg" />
+    </audio>
+
+    <div class="top-bar">
+      <div class="school-info">
+        <div class="logo">
+          <img src="resources/lps.png" alt="LPS Logo" onerror="this.style.display='none'">
+        </div>
+        <span>YOU [ Your Own Universe ]</span>
+        <span>StudySync made for DynamiX</span>
+      </div>
+      <div class="date-time" id="dateTime"></div>
+    </div>
+
+    <div class="app-scroll-wrapper">
+      <div class="scroll-arrow left" id="scrollLeft">‹</div>
+      <div class="app-panel" id="appPanel">
+        <div class="app-box" onclick="openApp('ai.html', 'Loading/ai.mp4')">
+          <div class="app-icon">
+            <img src="app_icons/ai.png" alt="AI Icon" onerror="this.style.display='none'">
+          </div>
+        </div>
+        <div class="app-box" onclick="openApp('timestrap.html', 'Loading/timestrap.mp4')">
+          <div class="app-icon">
+            <img src="app_icons/time-table.png" alt="Timetable Icon" onerror="this.style.display='none'">
+          </div>
+        </div>
+        <div class="app-box" onclick="openApp('games.html', 'Loading/games.mp4')">
+          <div class="app-icon">
+            <img src="app_icons/game.png" alt="Games Icon" onerror="this.style.display='none'">
+          </div>
+        </div>
+        <div class="app-box" onclick="openApp('news.html', 'loading/news.mp4')">
+          <div class="app-icon">
+            <img src="app_icons/news.png" alt="News Icon" onerror="this.style.display='none'">
+          </div>
+        </div>
+        <div class="app-box" onclick="openApp('chat.html', 'Loading/chat.mp4')">
+          <div class="app-icon">
+            <img src="app_icons/chat.png" alt="Chat Icon" onerror="this.style.display='none'">
+          </div>
+        </div>
+        <div class="app-box" onclick="openApp('meeting.html', 'Loading/meeting.mp4')">
+          <div class="app-icon">
+            <img src="app_icons/meeting.png" alt="Meeting Icon" onerror="this.style.display='none'">
+          </div>
+        </div>
+        <div class="app-box" onclick="openApp('timer.html', 'Loading/timer.mp4')">
+          <div class="app-icon">
+            <img src="app_icons/timer.png" alt="Timer Icon" onerror="this.style.display='none'">
+          </div>
+        </div>
+        <div class="app-box" onclick="openApp('video.html', 'Loading/study.mp4')">
+          <div class="app-icon">
+            <img src="app_icons/video.png" alt="Video Icon" onerror="this.style.display='none'">
+          </div>
+        </div>
+      </div>
+      <div class="scroll-arrow right" id="scrollRight">›</div>
+    </div>
+
+    <div class="dock">
+      <div class="dock-item streak">🔥 0 Days</div>
+      <div class="dock-item" onclick="location.href='profile.html'" title="Profile">👤</div>
+      <div class="dock-item" onclick="window.location.href='mailto:tanujkhandelwal383@gmail.com'" title="Contact">💬</div>
+      <div class="dock-item" onclick="toggleMusic()" title="Toggle Music" id="musicButton">🔊</div>
+      <div class="dock-item" onclick="location.href='about.html'" title="Info">ℹ️</div>
+      <div class="dock-item" onclick="location.href='setings.html'" title="Settings">⚙️</div>
+      <div class="dock-item" onclick="location.href='power.html'" title="Power">⏻</div>
+    </div>
+  </div>
+
+  <script src="home/script.js"></script>
+</body>
+</html>
