@@ -28,7 +28,6 @@ Inspired by the **Nintendo Switch UI**, it merges productivity, AI intelligence,
 | 🎵 Background Music | Ambient music for better focus (browser safe) |
 | 🌙 Light/Dark Mode | Toggle to protect eyes anytime |
 | 🔥 Streak Tracker | Encourages consistent learning habits |
-| ⚙️ Setup Wizard | Personalize your dashboard on first launch |
 
 ---
 
