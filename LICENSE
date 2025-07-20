@@ -1,38 +1,21 @@
-YOU LICENSE v1.0 (Custom Non-Commercial License)
+MIT License
 
-Copyright (c) 2025 Tanuj Sharma & Sparsh Jain
+Copyright (c) 2025 Tanuj Sharma
 
-Permission is granted to any person obtaining a copy of this software and associated 
-documentation files (the "Software") to use, copy, modify, or distribute the Software 
-for **personal, educational, or research purposes only**, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-1. **Non-Commercial Use Only:**  
-   The Software, or any derivative works, may not be sold, sublicensed, or used for 
-   commercial purposes without prior written consent from the copyright holders.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-2. **No Redistribution Without Attribution:**  
-   You may not redistribute this Software or substantial portions of it without 
-   including proper credit to the original creators:  
-   **Tanuj Sharma & Sparsh Jain**.
-
-3. **No Integration Into Proprietary Projects:**  
-   This Software may not be incorporated, in whole or in part, into any proprietary 
-   or closed-source projects without explicit permission.
-
-4. **Modification Notice:**  
-   Any modifications or derivative works must clearly state that they have been 
-   altered from the original and must retain this license.
-
-5. **Disclaimer of Warranty:**  
-   The Software is provided "as-is" without warranty of any kind, express or implied, 
-   including but not limited to the warranties of merchantability, fitness for a 
-   particular purpose, and non-infringement.
-
-6. **Termination:**  
-   Any breach of this license will result in automatic termination of the rights 
-   granted under this license.
-
----
-
-For commercial licensing or inquiries, please contact:  
-**tanujkhandelwal383@gmail.com**
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
