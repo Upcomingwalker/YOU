@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="resources/lps.png">
+    <title>Firebase Chats</title>
+    <link rel="stylesheet" href="App_Data/chat/style.css">
+</head>
+<body>
+    <div id="loginScreen" class="login-screen">
+        <div class="login-container">
+            <div class="login-header">
+                <h1>Welcome to Firebase Chats</h1>
+                <p>Enter your display name to get started</p>
+            </div>
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="username">Your Name</label>
+                    <input type="text" id="username" class="form-control" placeholder="Enter your name" required minlength="2">
+                </div>
+                <button type="submit" class="btn btn--primary btn--full-width">Start Chatting</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="chatDashboard" class="chat-dashboard hidden">
+        <div class="chat-header">
+            <div class="header-content">
+                <h2>Firebase Chats</h2>
+                <div class="header-user-info">
+                    <span id="headerUsername">User </span>
+                    <span class="connection-id">#<span id="headerConnectionId">00000</span></span>
+                    <div class="user-status-dot online"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-layout">
+            <div class="sidebar">
+                <div class="add-contact-section">
+                    <h3>Add Contact</h3>
+                    <form class="add-contact-form">
+                        <input type="text" id="contactId" class="form-control" placeholder="Enter 5-digit ID" maxlength="5" pattern="[0-9]{5}">
+                        <button type="submit" class="btn btn--primary btn--sm">Add</button>
+                    </form>
+                </div>
+
+                <div class="contacts-section">
+                    <h3>Contacts</h3>
+                    <div id="contactsList" class="contacts-list">
+                        <div class="no-contacts">No contacts yet. Add someone using their Connection ID!</div>
+                    </div>
+                </div>
+
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <div class="avatar-initial" id="userInitial">U</div>
+                        <div class="status-dot online"></div>
+                    </div>
+                    <div class="user-details">
+                        <div class="username" id="sidebarUsername">User </div>
+                        <div class="connection-id">#<span id="sidebarConnectionId">00000</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-panel">
+                <div id="welcomeMessage" class="welcome-message">
+                    <div class="welcome-content">
+                        <h2>Welcome to Firebase Chats</h2>
+                        <p>Select a contact from the sidebar to start chatting, or add a new contact using their 5-digit Connection ID.</p>
+                    </div>
+                </div>
+
+                <div id="activeChatArea" class="active-chat hidden">
+                    <div class="chat-conversation-header">
+                        <div class="chat-user-info">
+                            <div class="chat-avatar">
+                                <div class="avatar-initial" id="chatUser Initial">U</div>
+                            </div>
+                            <div class="chat-user-details">
+                                <div class="chat-username" id="chatUsername">User </div>
+                                <div class="chat-connection-id">#<span id="chatConnectionId">00000</span></div>
+                            </div>
+                        </div>
+                        <div class="chat-status">
+                            <div id="typingIndicator" class="typing-indicator hidden"></div>
+                        </div>
+                    </div>
+
+                    <div class="messages-container">
+                        <div id="messagesList" class="messages-list">
+                        </div>
+                    </div>
+
+                    <div class="message-input-container">
+                        <div class="message-input-wrapper">
+                            <input type="text" id="messageInput" class="message-input" placeholder="Type a message...">
+                            <button id="sendButton" class="send-button" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22,2 15,22 11,13 2,9"></polygon>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div id="loadingMessage">Connecting to Firebase Chats...</div>
+        </div>
+    </div>
+
+    <div id="notificationToast" class="notification-toast">
+        <div id="toastContent" class="toast-content"></div>
+    </div>
+
+    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.4.0.min.js"></script>
+    <script src="App_Data/chat/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="resources/lps.png">
+    <title>Meeting Base</title>
+    <link rel="stylesheet" href="App_Data/meeting/styles.css">
+    <script src="https://sdk.videosdk.live/js-sdk/0.1.6/videosdk.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div id="landing-screen" class="screen active">
+            <div class="landing-container">
+                <div class="logo-section">
+                    <h1 class="app-title">Meeting Base</h1>
+                    <p class="app-subtitle">Professional video conferencing reimagined</p>
+                </div>
+                
+                <div class="main-card">
+                    <div class="user-section">
+                        <div class="form-group">
+                            <label for="userName" class="form-label">Your Name</label>
+                            <input type="text" id="userName" class="form-control" placeholder="Enter your display name" required>
+                        </div>
+                    </div>
+                    
+                    <div class="action-cards">
+                        <div class="action-card create-card" id="createMeetingBtn">
+                            <div class="card-icon">📹</div>
+                            <h3>Create Meeting</h3>
+                            <p>Start a new meeting with a unique 6-digit ID</p>
+                        </div>
+                        
+                        <div class="action-card join-card" id="joinMeetingBtn">
+                            <div class="card-icon">🔗</div>
+                            <h3>Join Meeting</h3>
+                            <p>Enter a meeting ID to join an existing meeting</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="error-message" class="error-display"></div>
+            </div>
+        </div>
+
+        <div id="join-screen" class="screen">
+            <div class="join-container">
+                <div class="join-card">
+                    <h2>Join Meeting</h2>
+                    <div class="form-group">
+                        <label for="meetingId" class="form-label">Meeting ID</label>
+                        <input type="text" id="meetingId" class="form-control meeting-id-input" placeholder="Enter 6-digit meeting ID" maxlength="6">
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn--primary btn--full-width" id="joinBtn">Join Meeting</button>
+                        <button class="btn btn--outline btn--full-width" id="backToLanding">Back</button>
+                    </div>
+                    <div id="join-error-message" class="error-display"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="meeting-screen" class="screen">
+            <div class="meeting-header">
+                <div class="meeting-info">
+                    <h3 id="meetingTitle">Meeting Base</h3>
+                    <span class="meeting-id-display">ID: <span id="currentMeetingId"></span></span>
+                </div>
+                <div class="participant-count">
+                    <span id="participantCount">1 participant</span>
+                </div>
+            </div>
+
+            <div class="meeting-content">
+                <div class="video-grid" id="videoGrid">
+                    <div class="video-placeholder local-video">
+                        <video id="localVideo" autoplay muted playsinline></video>
+                        <div class="participant-overlay">
+                            <span class="participant-name" id="localName">You</span>
+                            <div class="participant-controls">
+                                <span class="mic-indicator" id="localMicIndicator">🎤</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-center">
+                <div class="control-group">
+                    <button class="control-btn mic-btn active" id="micBtn" title="Toggle Microphone">
+                        <span class="control-icon">🎤</span>
+                        <span class="control-label">Mic</span>
+                    </button>
+                    
+                    <button class="control-btn camera-btn active" id="cameraBtn" title="Toggle Camera">
+                        <span class="control-icon">📹</span>
+                        <span class="control-label">Camera</span>
+                    </button>
+                    
+                    <button class="control-btn screen-btn" id="screenBtn" title="Share Screen">
+                        <span class="control-icon">🖥️</span>
+                        <span class="control-label">Share</span>
+                    </button>
+                    
+                    <button class="control-btn participants-btn" id="participantsBtn" title="Participants">
+                        <span class="control-icon">👥</span>
+                        <span class="control-label">People</span>
+                    </button>
+                    
+                    <button class="control-btn leave-btn" id="leaveBtn" title="Leave Meeting">
+                        <span class="control-icon">📞</span>
+                        <span class="control-label">Leave</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading-screen" class="screen">
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <p class="loading-text" id="loadingText">Connecting to meeting...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="App_Data/meeting/script.js"></script>
+</body>
+</html>
