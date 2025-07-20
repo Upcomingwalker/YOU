@@ -11,8 +11,53 @@ class MeetingBase {
         this.isVideoEnabled = true;
         this.stunConfig = {
             iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' }
-            ]
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
+                {
+                    urls: 'turn:relay1.expressturn.com:3478',
+                    credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+                    username: 'ef4e1f29b4c3e45ba10b'
+                },
+                {
+                    urls: 'turn:relay2.expressturn.com:3478',
+                    credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+                    username: 'ef4e1f29b4c3e45ba10b'
+                },
+                {
+                    urls: 'turns:relay1.expressturn.com:5349',
+                    credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+                    username: 'ef4e1f29b4c3e45ba10b'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:80',
+                    credential: 'openrelayproject',
+                    username: 'openrelay'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443',
+                    credential: 'openrelayproject',
+                    username: 'openrelay'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                    credential: 'openrelayproject',
+                    username: 'openrelay'
+                },
+                {
+                    urls: 'turn:numb.viagenie.ca',
+                    credential: 'muazkh',
+                    username: 'webrtc@live.com'
+                },
+                {
+                    urls: 'turn:192.158.29.39:3478?transport=udp',
+                    credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+                    username: 'ef4e1f29b4c3e45ba10b'
+                }
+            ],
+            iceCandidatePoolSize: 10
         };
         setTimeout(() => this.initializeApp(), 100);
     }
@@ -64,6 +109,7 @@ class MeetingBase {
             const pc = this.peers.get(pid);
             if (pc) pc.close();
             this.peers.delete(pid);
+            this.updateParticipantCount();
         });
     }
 
@@ -109,6 +155,8 @@ class MeetingBase {
         }
         if (document.getElementById('micBtn')) document.getElementById('micBtn').onclick = () => this.toggleMic();
         if (document.getElementById('cameraBtn')) document.getElementById('cameraBtn').onclick = () => this.toggleCamera();
+        if (document.getElementById('screenBtn')) document.getElementById('screenBtn').onclick = () => this.toggleScreenShare();
+        if (document.getElementById('participantsBtn')) document.getElementById('participantsBtn').onclick = () => this.showParticipantsList();
         if (document.getElementById('leaveBtn')) document.getElementById('leaveBtn').onclick = () => this.leaveMeeting();
     }
 
@@ -183,17 +231,24 @@ class MeetingBase {
         if (data.success) {
             this.socket.emit('join', { meetingId: data.meetingId, userName });
         } else {
-            this.showError('Failed to join meeting', 'join-error-message');
+            this.showError('Meeting not found. Please check the meeting ID and try again.', 'join-error-message');
             this.showScreen('join-screen');
         }
     }
 
     async setupMedia() {
-        this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        const v = document.getElementById('localVideo');
-        if (v) v.srcObject = this.localStream;
-        this.localStream.getAudioTracks().forEach(t => t.enabled = this.isAudioEnabled);
-        this.localStream.getVideoTracks().forEach(t => t.enabled = this.isVideoEnabled);
+        try {
+            this.localStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: { ideal: 640 }, height: { ideal: 480 } }, 
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+            });
+            const v = document.getElementById('localVideo');
+            if (v) v.srcObject = this.localStream;
+            this.localStream.getAudioTracks().forEach(t => t.enabled = this.isAudioEnabled);
+            this.localStream.getVideoTracks().forEach(t => t.enabled = this.isVideoEnabled);
+        } catch (error) {
+            this.showError('Failed to access camera/microphone. Please check permissions.');
+        }
     }
 
     showMeetingScreen() {
@@ -223,9 +278,11 @@ class MeetingBase {
     updateControlStates() {
         const micBtn = document.getElementById('micBtn');
         const cameraBtn = document.getElementById('cameraBtn');
+        const screenBtn = document.getElementById('screenBtn');
         const micIndicator = document.getElementById('localMicIndicator');
         if (micBtn) micBtn.classList.toggle('active', this.isAudioEnabled);
         if (cameraBtn) cameraBtn.classList.toggle('active', this.isVideoEnabled);
+        if (screenBtn) screenBtn.classList.toggle('active', this.isScreenSharing);
         if (micIndicator) micIndicator.textContent = this.isAudioEnabled ? '🎤' : '🔇';
     }
 
@@ -244,7 +301,7 @@ class MeetingBase {
         wrap.innerHTML = `
             <video id="video-${pid}" autoplay playsinline style="width:100%;height:100%;object-fit:cover;"></video>
             <div class="participant-overlay">
-                <span class="participant-name">${pid}</span>
+                <span class="participant-name">${pid.substring(0, 8)}</span>
                 <div class="participant-controls"><span class="mic-indicator">🎤</span></div>
             </div>`;
         grid.appendChild(wrap);
@@ -254,10 +311,17 @@ class MeetingBase {
         this.addRemoteVideo(pid);
         const pc = new RTCPeerConnection(this.stunConfig);
         this.peers.set(pid, pc);
-        if (this.localStream) this.localStream.getTracks().forEach(track => pc.addTrack(track, this.localStream));
+        
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => pc.addTrack(track, this.localStream));
+        }
+        
         pc.onicecandidate = (e) => {
-            if (e.candidate) this.socket.emit('signal', { to: pid, data: e.candidate });
+            if (e.candidate) {
+                this.socket.emit('signal', { to: pid, data: e.candidate });
+            }
         };
+        
         pc.ontrack = (e) => {
             const v = document.getElementById('video-' + pid);
             if (v) {
@@ -265,13 +329,33 @@ class MeetingBase {
                 v.play();
             }
         };
+        
+        pc.onconnectionstatechange = () => {
+            if (pc.connectionState === 'failed') {
+                pc.restartIce();
+            }
+        };
+        
+        pc.oniceconnectionstatechange = () => {
+            if (pc.iceConnectionState === 'disconnected') {
+                setTimeout(() => {
+                    if (pc.iceConnectionState === 'disconnected') {
+                        pc.restartIce();
+                    }
+                }, 5000);
+            }
+        };
+        
         if (initiator) {
             pc.onnegotiationneeded = async () => {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                this.socket.emit('signal', { to: pid, data: pc.localDescription });
+                try {
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    this.socket.emit('signal', { to: pid, data: pc.localDescription });
+                } catch (error) {}
             };
         }
+        
         return pc;
     }
 
@@ -287,10 +371,61 @@ class MeetingBase {
         this.updateControlStates();
     }
 
+    async toggleScreenShare() {
+        try {
+            if (this.isScreenSharing) {
+                this.isScreenSharing = false;
+                await this.setupMedia();
+                this.updateAllPeerConnections();
+            } else {
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                const v = document.getElementById('localVideo');
+                if (v) v.srcObject = screenStream;
+                this.isScreenSharing = true;
+                screenStream.getVideoTracks()[0].onended = () => {
+                    this.isScreenSharing = false;
+                    this.setupMedia().then(() => {
+                        this.setupLocalVideo();
+                        this.updateAllPeerConnections();
+                    });
+                };
+                this.localStream = screenStream;
+                this.updateAllPeerConnections();
+            }
+            this.updateControlStates();
+        } catch (error) {
+            this.showError('Failed to toggle screen sharing');
+        }
+    }
+
+    updateAllPeerConnections() {
+        if (this.localStream) {
+            this.peers.forEach(async (pc, pid) => {
+                const senders = pc.getSenders();
+                const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+                const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+                const videoTrack = this.localStream.getVideoTracks()[0];
+                const audioTrack = this.localStream.getAudioTracks()[0];
+                if (videoSender && videoTrack) await videoSender.replaceTrack(videoTrack);
+                if (audioSender && audioTrack) await audioSender.replaceTrack(audioTrack);
+            });
+        }
+    }
+
+    showParticipantsList() {
+        let participants = [document.getElementById('userName').value.trim() + ' (You)'];
+        this.peers.forEach((pc, pid) => {
+            participants.push(pid.substring(0, 8));
+        });
+        const count = participants.length;
+        alert(`Participants (${count}):\n${participants.join('\n')}`);
+    }
+
     leaveMeeting() {
         if (this.localStream) this.localStream.getTracks().forEach(tr => tr.stop());
         for (let [pid, pc] of this.peers) { pc.close(); }
         this.peers.clear();
+        this.isScreenSharing = false;
         this.showScreen('landing-screen');
         document.getElementById('videoGrid').innerHTML = `
             <div class="video-placeholder">
