@@ -12,29 +12,25 @@ class MeetingBase {
         this.isScreenSharing = false;
         this.localStream = null;
         this.participants = new Map();
-        this.initializationAttempts = 0;
-        this.maxInitializationAttempts = 3;
+        this.remoteStreams = new Map();
+        this.peerConnections = new Map();
         setTimeout(() => this.initializeApp(), 100);
     }
 
     async initializeApp() {
-        console.log('Initializing MeetingBase application...');
         this.loadUserData();
         this.bindEvents();
         this.showScreen('landing-screen');
         await this.initializeSocket();
-        console.log('Application initialized successfully');
     }
 
     async initializeSocket() {
         try {
             if (typeof io === 'undefined') {
-                console.error('Socket.IO not loaded. Please check your internet connection.');
                 this.showError('Connection error. Please refresh the page.');
                 return;
             }
 
-            console.log('Connecting to backend:', this.backendUrl);
             this.socket = io(this.backendUrl, {
                 timeout: 10000,
                 transports: ['websocket', 'polling']
@@ -42,7 +38,6 @@ class MeetingBase {
             
             this.setupSocketListeners();
         } catch (error) {
-            console.error('Socket initialization error:', error);
             this.showError('Failed to connect to server. Please try again.');
         }
     }
@@ -55,25 +50,19 @@ class MeetingBase {
         });
 
         this.socket.on('connect_error', (error) => {
-            console.error('Socket connection error:', error);
             this.showError('Unable to connect to server. Please check your internet connection.');
         });
 
         this.socket.on('participant-joined', (data) => {
-            console.log('Participant joined:', data);
-            this.addRemoteParticipant(data);
+            this.handleParticipantJoined(data);
         });
 
         this.socket.on('participant-left', (data) => {
-            console.log('Participant left:', data);
-            this.removeRemoteParticipant(data.participantId);
+            this.handleParticipantLeft(data.participantId);
         });
 
         this.socket.on('meeting-joined', (data) => {
-            console.log('Meeting joined, existing participants:', data.participants);
-            data.participants.forEach(participant => {
-                this.addRemoteParticipant(participant);
-            });
+            this.handleMeetingJoined(data);
         });
 
         this.socket.on('participant-audio-toggle', (data) => {
@@ -83,6 +72,76 @@ class MeetingBase {
         this.socket.on('participant-video-toggle', (data) => {
             this.updateParticipantVideo(data.participantId, data.isEnabled);
         });
+
+        this.socket.on('participant-stream-data', (data) => {
+            this.handleRemoteStreamData(data);
+        });
+
+        this.socket.on('meeting-state-sync', (data) => {
+            this.syncMeetingState(data);
+        });
+    }
+
+    handleParticipantJoined(data) {
+        if (data.participantId !== this.participantId) {
+            this.addRemoteParticipant(data);
+            this.broadcastCurrentState();
+            this.requestMeetingSync();
+        }
+    }
+
+    handleParticipantLeft(participantId) {
+        this.removeRemoteParticipant(participantId);
+    }
+
+    handleMeetingJoined(data) {
+        if (data.participants && data.participants.length > 0) {
+            data.participants.forEach(participant => {
+                if (participant.id !== this.participantId) {
+                    this.addRemoteParticipant(participant);
+                }
+            });
+        }
+        setTimeout(() => {
+            this.broadcastCurrentState();
+        }, 1000);
+    }
+
+    broadcastCurrentState() {
+        if (this.socket && this.socket.connected) {
+            this.socket.emit('participant-state-update', {
+                participantId: this.participantId,
+                userName: document.getElementById('userName').value.trim(),
+                isAudioEnabled: this.isAudioEnabled,
+                isVideoEnabled: this.isVideoEnabled,
+                isScreenSharing: this.isScreenSharing,
+                meetingId: this.currentMeetingId
+            });
+        }
+    }
+
+    requestMeetingSync() {
+        if (this.socket && this.socket.connected) {
+            this.socket.emit('request-meeting-sync', {
+                meetingId: this.currentMeetingId,
+                participantId: this.participantId
+            });
+        }
+    }
+
+    syncMeetingState(data) {
+        if (data.participants) {
+            data.participants.forEach(participant => {
+                if (participant.id !== this.participantId) {
+                    const existingParticipant = document.getElementById(`participant-${participant.id}`);
+                    if (!existingParticipant) {
+                        this.addRemoteParticipant(participant);
+                    }
+                    this.updateParticipantAudio(participant.id, participant.isAudioEnabled);
+                    this.updateParticipantVideo(participant.id, participant.isVideoEnabled);
+                }
+            });
+        }
     }
 
     loadUserData() {
@@ -91,7 +150,6 @@ class MeetingBase {
             const nameInput = document.getElementById('userName');
             if (nameInput) {
                 nameInput.value = savedName;
-                console.log('Loaded saved username:', savedName);
             }
         }
     }
@@ -101,12 +159,10 @@ class MeetingBase {
         if (nameInput && nameInput.value.trim()) {
             const userName = nameInput.value.trim();
             localStorage.setItem('meetingbase_username', userName);
-            console.log('Saved username:', userName);
         }
     }
 
     bindEvents() {
-        console.log('Binding events...');
         const createBtn = document.getElementById('createMeetingBtn');
         const joinBtn = document.getElementById('joinMeetingBtn');
         const userNameInput = document.getElementById('userName');
@@ -114,21 +170,15 @@ class MeetingBase {
         if (createBtn) {
             createBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                console.log('Create meeting clicked');
                 this.handleCreateMeeting();
             });
-        } else {
-            console.error('Create meeting button not found');
         }
 
         if (joinBtn) {
             joinBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                console.log('Join meeting clicked');
                 this.showJoinScreen();
             });
-        } else {
-            console.error('Join meeting button not found');
         }
 
         if (userNameInput) {
@@ -138,8 +188,6 @@ class MeetingBase {
                     this.handleCreateMeeting();
                 }
             });
-        } else {
-            console.error('Username input not found');
         }
 
         const joinMeetingBtn = document.getElementById('joinBtn');
@@ -149,7 +197,6 @@ class MeetingBase {
         if (joinMeetingBtn) {
             joinMeetingBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                console.log('Join button clicked');
                 this.handleJoinMeeting();
             });
         }
@@ -173,7 +220,6 @@ class MeetingBase {
         }
 
         this.bindMeetingControlEvents();
-        console.log('Events bound successfully');
     }
 
     bindMeetingControlEvents() {
@@ -220,20 +266,16 @@ class MeetingBase {
     }
 
     showScreen(screenId) {
-        console.log('Showing screen:', screenId);
         const screens = document.querySelectorAll('.screen');
         screens.forEach(screen => screen.classList.remove('active'));
         
         const targetScreen = document.getElementById(screenId);
         if (targetScreen) {
             targetScreen.classList.add('active');
-        } else {
-            console.error('Screen not found:', screenId);
         }
     }
 
     showError(message, containerId = 'error-message') {
-        console.error('Showing error:', message);
         const errorContainer = document.getElementById(containerId);
         if (errorContainer) {
             errorContainer.textContent = message;
@@ -254,7 +296,6 @@ class MeetingBase {
     validateUserName() {
         const userNameInput = document.getElementById('userName');
         if (!userNameInput) {
-            console.error('Username input element not found');
             return false;
         }
 
@@ -268,7 +309,6 @@ class MeetingBase {
     }
 
     async handleCreateMeeting() {
-        console.log('Handling create meeting...');
         if (!this.validateUserName()) return;
 
         this.hideError();
@@ -277,7 +317,6 @@ class MeetingBase {
 
         try {
             const userName = document.getElementById('userName').value.trim();
-            console.log('Creating meeting for user:', userName);
             
             const response = await fetch(`${this.backendUrl}/api/create-meeting`, {
                 method: 'POST',
@@ -293,27 +332,26 @@ class MeetingBase {
             }
 
             const data = await response.json();
-            console.log('Meeting creation response:', data);
             
             if (data.success) {
                 this.currentMeetingId = data.meetingId;
                 this.currentRoomId = data.roomId;
                 this.participantId = data.participantId;
                 this.token = data.token;
-
-                console.log('Meeting created successfully:', this.currentMeetingId);
                 
                 this.updateLoadingText('Connecting to meeting...');
                 await this.initializeMeeting();
 
                 setTimeout(() => {
                     this.showMeetingScreen();
+                    setTimeout(() => {
+                        this.broadcastCurrentState();
+                    }, 2000);
                 }, 1500);
             } else {
                 throw new Error(data.error || 'Failed to create meeting');
             }
         } catch (error) {
-            console.error('Error creating meeting:', error);
             let errorMessage = 'Failed to create meeting. ';
             
             if (error.name === 'TypeError' && error.message.includes('fetch')) {
@@ -338,12 +376,10 @@ class MeetingBase {
     async handleJoinMeeting() {
         const meetingIdInput = document.getElementById('meetingId');
         if (!meetingIdInput) {
-            console.error('Meeting ID input not found');
             return;
         }
 
         const meetingId = meetingIdInput.value.trim();
-        console.log('Attempting to join meeting:', meetingId);
         
         if (!this.validateUserName()) return;
 
@@ -359,7 +395,6 @@ class MeetingBase {
 
         try {
             const userName = document.getElementById('userName').value.trim();
-            console.log(`User ${userName} trying to join meeting ${meetingId}`);
             
             const response = await fetch(`${this.backendUrl}/api/join-meeting`, {
                 method: 'POST',
@@ -376,7 +411,6 @@ class MeetingBase {
             }
 
             const data = await response.json();
-            console.log('Join meeting response:', data);
             
             if (data.success) {
                 this.currentMeetingId = data.meetingId;
@@ -389,12 +423,15 @@ class MeetingBase {
 
                 setTimeout(() => {
                     this.showMeetingScreen();
+                    setTimeout(() => {
+                        this.requestMeetingSync();
+                        this.broadcastCurrentState();
+                    }, 2000);
                 }, 1500);
             } else {
                 throw new Error(data.error || 'Failed to join meeting');
             }
         } catch (error) {
-            console.error('Error joining meeting:', error);
             let errorMessage = 'Failed to join meeting. ';
             
             if (error.message.includes('Meeting not found')) {
@@ -414,7 +451,6 @@ class MeetingBase {
 
     async initializeMeeting() {
         const userName = document.getElementById('userName').value.trim();
-        console.log('Initializing meeting for:', userName);
         
         this.localParticipant = {
             id: this.participantId,
@@ -425,14 +461,11 @@ class MeetingBase {
         await this.setupMediaStreams();
         
         if (this.socket && this.socket.connected) {
-            console.log('Emitting join-meeting-room event');
             this.socket.emit('join-meeting-room', {
                 meetingId: this.currentMeetingId,
                 participantId: this.participantId,
                 userName: userName
             });
-        } else {
-            console.error('Socket not connected');
         }
     }
 
@@ -447,13 +480,14 @@ class MeetingBase {
         participantElement.className = 'video-placeholder';
         participantElement.id = `participant-${participantData.id}`;
         participantElement.innerHTML = `
+            <video id="video-${participantData.id}" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
             <div style="background: linear-gradient(45deg, #1a1a1a, #333); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; width: 100%; height: 100%;">
-                ${participantData.name.charAt(0).toUpperCase()}
+                ${(participantData.name || participantData.userName || 'User').charAt(0).toUpperCase()}
             </div>
             <div class="participant-overlay">
-                <span class="participant-name">${participantData.name}</span>
+                <span class="participant-name">${participantData.name || participantData.userName || 'Unknown User'}</span>
                 <div class="participant-controls">
-                    <span class="mic-indicator">🎤</span>
+                    <span class="mic-indicator" id="mic-${participantData.id}">🎤</span>
                 </div>
             </div>
         `;
@@ -461,7 +495,6 @@ class MeetingBase {
         videoGrid.appendChild(participantElement);
         this.participants.set(participantData.id, participantData);
         this.updateParticipantCount();
-        console.log('Added remote participant:', participantData.name);
     }
 
     removeRemoteParticipant(participantId) {
@@ -470,17 +503,14 @@ class MeetingBase {
             participantElement.remove();
         }
         this.participants.delete(participantId);
+        this.remoteStreams.delete(participantId);
         this.updateParticipantCount();
-        console.log('Removed remote participant:', participantId);
     }
 
     updateParticipantAudio(participantId, isEnabled) {
-        const participantElement = document.getElementById(`participant-${participantId}`);
-        if (participantElement) {
-            const micIndicator = participantElement.querySelector('.mic-indicator');
-            if (micIndicator) {
-                micIndicator.textContent = isEnabled ? '🎤' : '🔇';
-            }
+        const micIndicator = document.getElementById(`mic-${participantId}`);
+        if (micIndicator) {
+            micIndicator.textContent = isEnabled ? '🎤' : '🔇';
         }
     }
 
@@ -491,16 +521,22 @@ class MeetingBase {
         }
     }
 
+    handleRemoteStreamData(data) {
+        if (data.participantId !== this.participantId) {
+            const videoElement = document.getElementById(`video-${data.participantId}`);
+            if (videoElement && data.streamData) {
+                this.remoteStreams.set(data.participantId, data.streamData);
+            }
+        }
+    }
+
     async setupMediaStreams() {
         try {
-            console.log('Setting up media streams...');
             this.localStream = await navigator.mediaDevices.getUserMedia({
                 video: this.isVideoEnabled,
                 audio: this.isAudioEnabled
             });
-            console.log('Media stream acquired successfully');
         } catch (error) {
-            console.error('Error accessing media devices:', error);
             this.localStream = null;
         }
     }
@@ -510,11 +546,9 @@ class MeetingBase {
         if (loadingText) {
             loadingText.textContent = text;
         }
-        console.log('Loading text updated:', text);
     }
 
     showMeetingScreen() {
-        console.log('Showing meeting screen');
         this.showScreen('meeting-screen');
         this.updateMeetingInfo();
         this.updateParticipantCount();
@@ -529,11 +563,9 @@ class MeetingBase {
     }
 
     setupLocalVideo() {
-        console.log('Setting up local video');
         const localVideo = document.getElementById('localVideo');
         if (localVideo && this.localStream) {
             localVideo.srcObject = this.localStream;
-            console.log('Local video stream connected');
         } else if (localVideo) {
             localVideo.style.backgroundColor = '#1a1a1a';
         }
@@ -572,7 +604,6 @@ class MeetingBase {
 
     toggleMic() {
         this.isAudioEnabled = !this.isAudioEnabled;
-        console.log('Mic toggled:', this.isAudioEnabled);
         
         if (this.localStream) {
             const audioTracks = this.localStream.getAudioTracks();
@@ -583,7 +614,9 @@ class MeetingBase {
         
         if (this.socket && this.socket.connected) {
             this.socket.emit('toggle-audio', {
-                isEnabled: this.isAudioEnabled
+                isEnabled: this.isAudioEnabled,
+                participantId: this.participantId,
+                meetingId: this.currentMeetingId
             });
         }
         
@@ -592,7 +625,6 @@ class MeetingBase {
 
     toggleCamera() {
         this.isVideoEnabled = !this.isVideoEnabled;
-        console.log('Camera toggled:', this.isVideoEnabled);
         
         if (this.localStream) {
             const videoTracks = this.localStream.getVideoTracks();
@@ -603,7 +635,9 @@ class MeetingBase {
         
         if (this.socket && this.socket.connected) {
             this.socket.emit('toggle-video', {
-                isEnabled: this.isVideoEnabled
+                isEnabled: this.isVideoEnabled,
+                participantId: this.participantId,
+                meetingId: this.currentMeetingId
             });
         }
         
@@ -632,8 +666,15 @@ class MeetingBase {
                     this.showError('Screen sharing is not supported in this browser.');
                 }
             }
+            
+            if (this.socket && this.socket.connected) {
+                this.socket.emit('screen-share', {
+                    isSharing: this.isScreenSharing,
+                    participantId: this.participantId,
+                    meetingId: this.currentMeetingId
+                });
+            }
         } catch (error) {
-            console.error('Error toggling screen share:', error);
             this.showError('Failed to toggle screen sharing');
         }
     }
@@ -642,7 +683,7 @@ class MeetingBase {
         let participants = [document.getElementById('userName').value.trim() + ' (You)'];
         
         this.participants.forEach(participant => {
-            participants.push(participant.name || participant.displayName);
+            participants.push(participant.name || participant.userName || 'Unknown User');
         });
 
         const count = participants.length;
@@ -650,7 +691,6 @@ class MeetingBase {
     }
 
     leaveMeeting() {
-        console.log('Leaving meeting');
         this.handleMeetingLeft();
     }
 
@@ -661,7 +701,10 @@ class MeetingBase {
         }
 
         if (this.socket && this.socket.connected) {
-            this.socket.disconnect();
+            this.socket.emit('leave-meeting', {
+                meetingId: this.currentMeetingId,
+                participantId: this.participantId
+            });
         }
 
         this.currentMeetingId = null;
@@ -670,6 +713,8 @@ class MeetingBase {
         this.token = null;
         this.localParticipant = null;
         this.participants.clear();
+        this.remoteStreams.clear();
+        this.peerConnections.clear();
         this.isAudioEnabled = true;
         this.isVideoEnabled = true;
         this.isScreenSharing = false;
@@ -692,12 +737,15 @@ class MeetingBase {
         this.showScreen('landing-screen');
         
         setTimeout(() => {
+            if (this.socket) {
+                this.socket.disconnect();
+                this.socket = null;
+            }
             this.initializeSocket();
         }, 1000);
     }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, initializing MeetingBase...');
     new MeetingBase();
 });
