@@ -1,6 +1,3 @@
-
-
-
 # YOU — The Ultimate Student Dashboard 🎓🎮  
 🟣 [Live Site](https://you-lps.pages.dev)  
 🧠 [GitHub Repository](https://github.com/Upcomingwalker/YOU)  
@@ -22,14 +19,14 @@ Inspired by the **Nintendo Switch UI**, it merges productivity, AI intelligence,
 
 | Feature | Description |
 |--------|-------------|
-| 🎮 Switch-style UI | Swipeable cards, app dock, full-screen dynamic layout |
-| 🧠 Flat AI (Gemini-powered) | Your smart AI assistant — ready to help, chat, and guide |
-| ⏱️ Timetable & Study Timer | Visual scheduling and focus tools |
+| 🎮 Switch-style UI | Swipeable cards, app dock, and dynamic layout |
+| 🧠 Flat AI (Gemini-powered) | Smart AI assistant — ready to help, chat, and guide |
+| ⏱️ Timetable & Study Timer | Visual scheduling and focus tools with streaks |
 | 🗨️ Chat Space | AI chat & student-to-student messaging |
-| 📚 Chapter Finder | Finds videos for any school subject instantly |
-| 📰 News Platform | Student-focused news feed with a minimalist look |
-| 🎵 Background Music | Ambient music auto-plays for mood & focus (browser safe) |
-| 🌙 Light/Dark Mode | Toggle to protect eyes during day or night |
+| 📚 Chapter Finder | Instantly finds videos for school chapters |
+| 📰 News Platform | Student-focused news feed with a clean design |
+| 🎵 Background Music | Ambient music for better focus (browser safe) |
+| 🌙 Light/Dark Mode | Toggle to protect eyes anytime |
 | 🔥 Streak Tracker | Encourages consistent learning habits |
 | ⚙️ Setup Wizard | Personalize your dashboard on first launch |
 
@@ -37,18 +34,15 @@ Inspired by the **Nintendo Switch UI**, it merges productivity, AI intelligence,
 
 ## 🧠 Powered by Gemini AI
 
-**Flat AI** uses the **Google Gemini API** to provide intelligent answers and act as a friendly student companion.
+**Flat AI** is powered by **Google Gemini API**, offering real-time intelligent responses and acting as your virtual companion.
 
 ### 🔐 Add your Gemini API key:
 
-In your JavaScript present in ai folder :
+Inside the `ai` JavaScript folder, add:
 
 ```js
 const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
-````
-
----
-
+```
 
 ---
 
@@ -64,21 +58,20 @@ open index.html
 
 ## 🚀 Deployment
 
-This project is live at:
+This project is live at:  
 🔗 [https://you-lps.pages.dev](https://you-lps.pages.dev)
 
 To deploy your own version:
-
-* Upload to **GitHub Pages**, **Cloudflare Pages**, or **Firebase Hosting**
-* Ensure video/audio autoplay follows browser permission policies
+- Upload to **GitHub Pages**, **Cloudflare Pages**, or **Firebase Hosting**.
+- Make sure autoplay for videos/music follows browser permissions.
 
 ---
 
 ## 🙌 Creators
 
-👨‍💻 **Tanuj Sharma**
-👨‍💻 **Sparsh Jain**
-🏫 **Lovely Public Sr. Sec. School, Priyadarshini Vihar**
+👨‍💻 **Tanuj Sharma**  
+👨‍💻 **Sparsh Jain**  
+🏫 **Lovely Public Sr. Sec. School, Priyadarshini Vihar**  
 📧 Email: [tanujkhandelwal383@gmail.com](mailto:tanujkhandelwal383@gmail.com)
 
 ---
@@ -91,10 +84,5 @@ To deploy your own version:
 
 ## 🎖️ DynamiX 2025
 
-This project is officially submitted as a creative tech entry to **DynamiX 2025**, celebrating innovation and digital excellence in students.
-For more, visit [https://dynamix.co.in](https://dynamix.co.in)
-
----
-
-```
-
+This project is officially submitted as a creative tech entry to **DynamiX 2025**, celebrating innovation and digital excellence in students.  
+For more, visit [https://dynamix.co.in](https://dynamix.co.in).
