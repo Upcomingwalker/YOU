@@ -12,8 +12,16 @@ class MeetingBase {
         this.isScreenSharing = false;
         this.localStream = null;
         this.participants = new Map();
-        this.remoteStreams = new Map();
         this.peerConnections = new Map();
+        this.remoteStreams = new Map();
+        this.iceCandidatesQueue = new Map();
+        this.rtcConfiguration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+            ]
+        };
         setTimeout(() => this.initializeApp(), 100);
     }
 
@@ -49,10 +57,6 @@ class MeetingBase {
             console.log('Connected to backend server');
         });
 
-        this.socket.on('connect_error', (error) => {
-            this.showError('Unable to connect to server. Please check your internet connection.');
-        });
-
         this.socket.on('participant-joined', (data) => {
             this.handleParticipantJoined(data);
         });
@@ -65,6 +69,18 @@ class MeetingBase {
             this.handleMeetingJoined(data);
         });
 
+        this.socket.on('webrtc-offer', (data) => {
+            this.handleWebRTCOffer(data);
+        });
+
+        this.socket.on('webrtc-answer', (data) => {
+            this.handleWebRTCAnswer(data);
+        });
+
+        this.socket.on('webrtc-ice-candidate', (data) => {
+            this.handleICECandidate(data);
+        });
+
         this.socket.on('participant-audio-toggle', (data) => {
             this.updateParticipantAudio(data.participantId, data.isEnabled);
         });
@@ -72,76 +88,164 @@ class MeetingBase {
         this.socket.on('participant-video-toggle', (data) => {
             this.updateParticipantVideo(data.participantId, data.isEnabled);
         });
-
-        this.socket.on('participant-stream-data', (data) => {
-            this.handleRemoteStreamData(data);
-        });
-
-        this.socket.on('meeting-state-sync', (data) => {
-            this.syncMeetingState(data);
-        });
     }
 
-    handleParticipantJoined(data) {
+    async handleParticipantJoined(data) {
         if (data.participantId !== this.participantId) {
             this.addRemoteParticipant(data);
-            this.broadcastCurrentState();
-            this.requestMeetingSync();
+            await this.createPeerConnection(data.participantId, true);
         }
     }
 
     handleParticipantLeft(participantId) {
         this.removeRemoteParticipant(participantId);
+        this.closePeerConnection(participantId);
     }
 
-    handleMeetingJoined(data) {
+    async handleMeetingJoined(data) {
         if (data.participants && data.participants.length > 0) {
-            data.participants.forEach(participant => {
+            for (const participant of data.participants) {
                 if (participant.id !== this.participantId) {
                     this.addRemoteParticipant(participant);
+                    await this.createPeerConnection(participant.id, false);
                 }
-            });
+            }
         }
-        setTimeout(() => {
-            this.broadcastCurrentState();
-        }, 1000);
     }
 
-    broadcastCurrentState() {
-        if (this.socket && this.socket.connected) {
-            this.socket.emit('participant-state-update', {
-                participantId: this.participantId,
-                userName: document.getElementById('userName').value.trim(),
-                isAudioEnabled: this.isAudioEnabled,
-                isVideoEnabled: this.isVideoEnabled,
-                isScreenSharing: this.isScreenSharing,
+    async createPeerConnection(participantId, isInitiator = false) {
+        try {
+            const peerConnection = new RTCPeerConnection(this.rtcConfiguration);
+            this.peerConnections.set(participantId, peerConnection);
+
+            if (this.localStream) {
+                this.localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, this.localStream);
+                });
+            }
+
+            peerConnection.ontrack = (event) => {
+                const [remoteStream] = event.streams;
+                this.remoteStreams.set(participantId, remoteStream);
+                this.displayRemoteStream(participantId, remoteStream);
+            };
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    this.socket.emit('webrtc-ice-candidate', {
+                        to: participantId,
+                        from: this.participantId,
+                        candidate: event.candidate,
+                        meetingId: this.currentMeetingId
+                    });
+                }
+            };
+
+            peerConnection.onconnectionstatechange = () => {
+                console.log(`Peer connection state with ${participantId}:`, peerConnection.connectionState);
+            };
+
+            if (isInitiator) {
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                this.socket.emit('webrtc-offer', {
+                    to: participantId,
+                    from: this.participantId,
+                    offer: offer,
+                    meetingId: this.currentMeetingId
+                });
+            }
+
+            const queuedCandidates = this.iceCandidatesQueue.get(participantId) || [];
+            for (const candidate of queuedCandidates) {
+                await peerConnection.addIceCandidate(candidate);
+            }
+            this.iceCandidatesQueue.delete(participantId);
+
+        } catch (error) {
+            console.error('Error creating peer connection:', error);
+        }
+    }
+
+    async handleWebRTCOffer(data) {
+        try {
+            const { from, offer } = data;
+            let peerConnection = this.peerConnections.get(from);
+            
+            if (!peerConnection) {
+                await this.createPeerConnection(from, false);
+                peerConnection = this.peerConnections.get(from);
+            }
+
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            
+            this.socket.emit('webrtc-answer', {
+                to: from,
+                from: this.participantId,
+                answer: answer,
                 meetingId: this.currentMeetingId
             });
+        } catch (error) {
+            console.error('Error handling WebRTC offer:', error);
         }
     }
 
-    requestMeetingSync() {
-        if (this.socket && this.socket.connected) {
-            this.socket.emit('request-meeting-sync', {
-                meetingId: this.currentMeetingId,
-                participantId: this.participantId
-            });
+    async handleWebRTCAnswer(data) {
+        try {
+            const { from, answer } = data;
+            const peerConnection = this.peerConnections.get(from);
+            
+            if (peerConnection) {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            }
+        } catch (error) {
+            console.error('Error handling WebRTC answer:', error);
         }
     }
 
-    syncMeetingState(data) {
-        if (data.participants) {
-            data.participants.forEach(participant => {
-                if (participant.id !== this.participantId) {
-                    const existingParticipant = document.getElementById(`participant-${participant.id}`);
-                    if (!existingParticipant) {
-                        this.addRemoteParticipant(participant);
-                    }
-                    this.updateParticipantAudio(participant.id, participant.isAudioEnabled);
-                    this.updateParticipantVideo(participant.id, participant.isVideoEnabled);
-                }
-            });
+    async handleICECandidate(data) {
+        try {
+            const { from, candidate } = data;
+            const peerConnection = this.peerConnections.get(from);
+            
+            if (peerConnection && peerConnection.remoteDescription) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            } else {
+                const queue = this.iceCandidatesQueue.get(from) || [];
+                queue.push(new RTCIceCandidate(candidate));
+                this.iceCandidatesQueue.set(from, queue);
+            }
+        } catch (error) {
+            console.error('Error handling ICE candidate:', error);
         }
+    }
+
+    displayRemoteStream(participantId, stream) {
+        const videoElement = document.getElementById(`video-${participantId}`);
+        if (videoElement) {
+            videoElement.srcObject = stream;
+            videoElement.style.display = 'block';
+            videoElement.play();
+            
+            const placeholder = videoElement.nextElementSibling;
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
+        }
+    }
+
+    closePeerConnection(participantId) {
+        const peerConnection = this.peerConnections.get(participantId);
+        if (peerConnection) {
+            peerConnection.close();
+            this.peerConnections.delete(participantId);
+        }
+        this.remoteStreams.delete(participantId);
+        this.iceCandidatesQueue.delete(participantId);
     }
 
     loadUserData() {
@@ -339,14 +443,14 @@ class MeetingBase {
                 this.participantId = data.participantId;
                 this.token = data.token;
                 
+                this.updateLoadingText('Setting up media...');
+                await this.setupMediaStreams();
+                
                 this.updateLoadingText('Connecting to meeting...');
                 await this.initializeMeeting();
 
                 setTimeout(() => {
                     this.showMeetingScreen();
-                    setTimeout(() => {
-                        this.broadcastCurrentState();
-                    }, 2000);
                 }, 1500);
             } else {
                 throw new Error(data.error || 'Failed to create meeting');
@@ -418,15 +522,14 @@ class MeetingBase {
                 this.participantId = data.participantId;
                 this.token = data.token;
 
+                this.updateLoadingText('Setting up media...');
+                await this.setupMediaStreams();
+
                 this.updateLoadingText('Joining meeting...');
                 await this.initializeMeeting();
 
                 setTimeout(() => {
                     this.showMeetingScreen();
-                    setTimeout(() => {
-                        this.requestMeetingSync();
-                        this.broadcastCurrentState();
-                    }, 2000);
                 }, 1500);
             } else {
                 throw new Error(data.error || 'Failed to join meeting');
@@ -457,8 +560,6 @@ class MeetingBase {
             displayName: userName,
             isLocal: true
         };
-
-        await this.setupMediaStreams();
         
         if (this.socket && this.socket.connected) {
             this.socket.emit('join-meeting-room', {
@@ -481,7 +582,7 @@ class MeetingBase {
         participantElement.id = `participant-${participantData.id}`;
         participantElement.innerHTML = `
             <video id="video-${participantData.id}" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
-            <div style="background: linear-gradient(45deg, #1a1a1a, #333); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; width: 100%; height: 100%;">
+            <div class="placeholder-avatar" style="background: linear-gradient(45deg, #1a1a1a, #333); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; width: 100%; height: 100%;">
                 ${(participantData.name || participantData.userName || 'User').charAt(0).toUpperCase()}
             </div>
             <div class="participant-overlay">
@@ -503,7 +604,7 @@ class MeetingBase {
             participantElement.remove();
         }
         this.participants.delete(participantId);
-        this.remoteStreams.delete(participantId);
+        this.closePeerConnection(participantId);
         this.updateParticipantCount();
     }
 
@@ -512,20 +613,27 @@ class MeetingBase {
         if (micIndicator) {
             micIndicator.textContent = isEnabled ? '🎤' : '🔇';
         }
-    }
-
-    updateParticipantVideo(participantId, isEnabled) {
-        const participantElement = document.getElementById(`participant-${participantId}`);
-        if (participantElement) {
-            participantElement.style.opacity = isEnabled ? '1' : '0.5';
+        
+        const stream = this.remoteStreams.get(participantId);
+        if (stream) {
+            const audioTracks = stream.getAudioTracks();
+            audioTracks.forEach(track => {
+                track.enabled = isEnabled;
+            });
         }
     }
 
-    handleRemoteStreamData(data) {
-        if (data.participantId !== this.participantId) {
-            const videoElement = document.getElementById(`video-${data.participantId}`);
-            if (videoElement && data.streamData) {
-                this.remoteStreams.set(data.participantId, data.streamData);
+    updateParticipantVideo(participantId, isEnabled) {
+        const videoElement = document.getElementById(`video-${participantId}`);
+        const placeholder = document.querySelector(`#participant-${participantId} .placeholder-avatar`);
+        
+        if (videoElement && placeholder) {
+            if (isEnabled) {
+                videoElement.style.display = 'block';
+                placeholder.style.display = 'none';
+            } else {
+                videoElement.style.display = 'none';
+                placeholder.style.display = 'flex';
             }
         }
     }
@@ -533,10 +641,20 @@ class MeetingBase {
     async setupMediaStreams() {
         try {
             this.localStream = await navigator.mediaDevices.getUserMedia({
-                video: this.isVideoEnabled,
-                audio: this.isAudioEnabled
+                video: { 
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                },
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
             });
+            console.log('Local media stream acquired');
         } catch (error) {
+            console.error('Error accessing media devices:', error);
+            this.showError('Failed to access camera/microphone. Please check permissions.');
             this.localStream = null;
         }
     }
@@ -653,29 +771,64 @@ class MeetingBase {
                 if (screenBtn) screenBtn.classList.remove('active');
                 await this.setupMediaStreams();
                 this.setupLocalVideo();
+                this.updateAllPeerConnections();
             } else {
                 if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-                    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+                        video: true,
+                        audio: true
+                    });
+                    
                     const localVideo = document.getElementById('localVideo');
                     if (localVideo) {
-                        localVideo.srcObject = stream;
+                        localVideo.srcObject = screenStream;
                     }
+                    
                     this.isScreenSharing = true;
                     if (screenBtn) screenBtn.classList.add('active');
+                    
+                    screenStream.getVideoTracks()[0].onended = () => {
+                        this.isScreenSharing = false;
+                        if (screenBtn) screenBtn.classList.remove('active');
+                        this.setupMediaStreams().then(() => {
+                            this.setupLocalVideo();
+                            this.updateAllPeerConnections();
+                        });
+                    };
+                    
+                    this.localStream = screenStream;
+                    this.updateAllPeerConnections();
                 } else {
                     this.showError('Screen sharing is not supported in this browser.');
                 }
             }
-            
-            if (this.socket && this.socket.connected) {
-                this.socket.emit('screen-share', {
-                    isSharing: this.isScreenSharing,
-                    participantId: this.participantId,
-                    meetingId: this.currentMeetingId
-                });
-            }
         } catch (error) {
+            console.error('Screen share error:', error);
             this.showError('Failed to toggle screen sharing');
+        }
+    }
+
+    updateAllPeerConnections() {
+        if (this.localStream) {
+            this.peerConnections.forEach(async (peerConnection, participantId) => {
+                const senders = peerConnection.getSenders();
+                const videoSender = senders.find(sender => 
+                    sender.track && sender.track.kind === 'video'
+                );
+                const audioSender = senders.find(sender => 
+                    sender.track && sender.track.kind === 'audio'
+                );
+
+                const videoTrack = this.localStream.getVideoTracks()[0];
+                const audioTrack = this.localStream.getAudioTracks()[0];
+
+                if (videoSender && videoTrack) {
+                    await videoSender.replaceTrack(videoTrack);
+                }
+                if (audioSender && audioTrack) {
+                    await audioSender.replaceTrack(audioTrack);
+                }
+            });
         }
     }
 
@@ -700,6 +853,10 @@ class MeetingBase {
             this.localStream = null;
         }
 
+        this.peerConnections.forEach((peerConnection, participantId) => {
+            this.closePeerConnection(participantId);
+        });
+
         if (this.socket && this.socket.connected) {
             this.socket.emit('leave-meeting', {
                 meetingId: this.currentMeetingId,
@@ -713,8 +870,9 @@ class MeetingBase {
         this.token = null;
         this.localParticipant = null;
         this.participants.clear();
-        this.remoteStreams.clear();
         this.peerConnections.clear();
+        this.remoteStreams.clear();
+        this.iceCandidatesQueue.clear();
         this.isAudioEnabled = true;
         this.isVideoEnabled = true;
         this.isScreenSharing = false;
