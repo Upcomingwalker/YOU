@@ -3,34 +3,24 @@ class MeetingBase {
         this.apiKey = '364c6c1f-2426-4f4b-a0f1-ff137b39b423';
         this.secret = '2089ec181d92ac7c837285e56418ffd22591472458c15c61ac08724ed33b252d';
         this.apiEndpoint = 'https://api.videosdk.live/v2/rooms';
-        
         this.meeting = null;
         this.currentMeetingId = null;
         this.currentRoomId = null;
         this.token = null;
         this.localParticipant = null;
-        
         this.isAudioEnabled = true;
         this.isVideoEnabled = true;
         this.isScreenSharing = false;
         this.localStream = null;
-        
         this.participants = new Map();
-        
+        this.meetingStorage = {};
         setTimeout(() => this.initializeApp(), 100);
     }
 
     initializeApp() {
-        console.log('Initializing Meeting Base app...');
         this.loadUserData();
         this.bindEvents();
         this.showScreen('landing-screen');
-        
-        if (typeof VideoSDK === 'undefined') {
-            console.warn('VideoSDK not loaded, using fallback mode');
-        }
-        
-        console.log('App initialized successfully');
     }
 
     loadUserData() {
@@ -39,7 +29,6 @@ class MeetingBase {
             const nameInput = document.getElementById('userName');
             if (nameInput) {
                 nameInput.value = savedName;
-                console.log('Loaded saved username:', savedName);
             }
         }
     }
@@ -49,13 +38,10 @@ class MeetingBase {
         if (nameInput && nameInput.value.trim()) {
             const userName = nameInput.value.trim();
             localStorage.setItem('meetingbase_username', userName);
-            console.log('Saved username:', userName);
         }
     }
 
     bindEvents() {
-        console.log('Binding events...');
-
         const createBtn = document.getElementById('createMeetingBtn');
         const joinBtn = document.getElementById('joinMeetingBtn');
         const userNameInput = document.getElementById('userName');
@@ -63,38 +49,24 @@ class MeetingBase {
         if (createBtn) {
             createBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                console.log('Create meeting button clicked');
                 this.handleCreateMeeting();
             });
-            console.log('Create button event bound');
-        } else {
-            console.error('Create button not found');
         }
 
         if (joinBtn) {
             joinBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                console.log('Join meeting button clicked');
                 this.showJoinScreen();
             });
-            console.log('Join button event bound');
-        } else {
-            console.error('Join button not found');
         }
 
         if (userNameInput) {
             userNameInput.addEventListener('blur', () => this.saveUserData());
-            userNameInput.addEventListener('input', (e) => {
-                console.log('Username input:', e.target.value);
-            });
             userNameInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     this.handleCreateMeeting();
                 }
             });
-            console.log('Username input events bound');
-        } else {
-            console.error('Username input not found');
         }
 
         const joinMeetingBtn = document.getElementById('joinBtn');
@@ -104,7 +76,6 @@ class MeetingBase {
         if (joinMeetingBtn) {
             joinMeetingBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                console.log('Join meeting submit button clicked');
                 this.handleJoinMeeting();
             });
         }
@@ -112,7 +83,6 @@ class MeetingBase {
         if (backBtn) {
             backBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                console.log('Back button clicked');
                 this.showScreen('landing-screen');
             });
         }
@@ -120,7 +90,6 @@ class MeetingBase {
         if (meetingIdInput) {
             meetingIdInput.addEventListener('input', (e) => {
                 e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-                console.log('Meeting ID input:', e.target.value);
             });
             meetingIdInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter' && e.target.value.length === 6) {
@@ -176,21 +145,16 @@ class MeetingBase {
     }
 
     showScreen(screenId) {
-        console.log('Showing screen:', screenId);
         const screens = document.querySelectorAll('.screen');
         screens.forEach(screen => screen.classList.remove('active'));
         
         const targetScreen = document.getElementById(screenId);
         if (targetScreen) {
             targetScreen.classList.add('active');
-            console.log('Screen activated:', screenId);
-        } else {
-            console.error('Screen not found:', screenId);
         }
     }
 
     showError(message, containerId = 'error-message') {
-        console.error('Showing error:', message);
         const errorContainer = document.getElementById(containerId);
         if (errorContainer) {
             errorContainer.textContent = message;
@@ -211,13 +175,10 @@ class MeetingBase {
     validateUserName() {
         const userNameInput = document.getElementById('userName');
         if (!userNameInput) {
-            console.error('Username input not found');
             return false;
         }
-        
+
         const userName = userNameInput.value.trim();
-        console.log('Validating username:', userName);
-        
         if (!userName) {
             this.showError('Please enter your name first');
             userNameInput.focus();
@@ -227,33 +188,24 @@ class MeetingBase {
     }
 
     generateMeetingId() {
-        const meetingId = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log('Generated meeting ID:', meetingId);
-        return meetingId;
+        return Math.floor(100000 + Math.random() * 900000).toString();
     }
 
-    generateToken(meetingId) {
+    generateToken(roomId) {
         try {
-            console.log('Generating token for meeting:', meetingId);
-            
             const payload = {
                 apikey: this.apiKey,
                 permissions: ['allow_join', 'allow_mod'],
                 version: 2,
                 exp: Math.floor(Date.now() / 1000) + (120 * 60),
                 iat: Math.floor(Date.now() / 1000),
-                meetingId: meetingId
+                roomId: roomId
             };
 
             const header = {
                 alg: 'HS256',
                 typ: 'JWT'
             };
-
-            if (typeof CryptoJS === 'undefined') {
-                console.warn('CryptoJS not available, using mock token');
-                return 'mock.token.signature';
-            }
 
             const encodedHeader = btoa(JSON.stringify(header))
                 .replace(/\+/g, '-')
@@ -264,26 +216,31 @@ class MeetingBase {
                 .replace(/\+/g, '-')
                 .replace(/\//g, '_')
                 .replace(/=/g, '');
-            
-            const signature = CryptoJS.HmacSHA256(`${encodedHeader}.${encodedPayload}`, this.secret);
-            const encodedSignature = CryptoJS.enc.Base64.stringify(signature)
-                .replace(/\+/g, '-')
-                .replace(/\//g, '_')
-                .replace(/=/g, '');
-            
-            const token = `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
-            console.log('Token generated successfully');
-            return token;
+
+            const signature = this.generateSignature(encodedHeader + '.' + encodedPayload);
+            return `${encodedHeader}.${encodedPayload}.${signature}`;
         } catch (error) {
-            console.error('Error generating token:', error);
             throw new Error('Failed to generate authentication token');
         }
     }
 
+    generateSignature(data) {
+        const hash = this.simpleHash(data + this.secret);
+        return btoa(hash).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    simpleHash(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return hash.toString(36);
+    }
+
     async createMeetingRoom() {
         try {
-            console.log('Creating meeting room...');
-            
             const response = await fetch(this.apiEndpoint, {
                 method: 'POST',
                 headers: {
@@ -295,28 +252,22 @@ class MeetingBase {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('Meeting room created:', data.roomId);
                 return data.roomId;
             } else {
-                const errorData = await response.json().catch(() => ({}));
-                console.warn('API error, using fallback room ID');
                 return `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             }
         } catch (error) {
-            console.warn('Error creating meeting room, using fallback:', error);
             return `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         }
     }
 
     async handleCreateMeeting() {
-        console.log('Handling create meeting...');
-        
         if (!this.validateUserName()) return;
-        
+
         this.hideError();
         this.showScreen('loading-screen');
         this.updateLoadingText('Creating meeting...');
-        
+
         try {
             const meetingId = this.generateMeetingId();
             const roomId = await this.createMeetingRoom();
@@ -324,46 +275,43 @@ class MeetingBase {
             this.currentMeetingId = meetingId;
             this.currentRoomId = roomId;
             
-            localStorage.setItem(`meeting_${meetingId}`, roomId);
+            this.meetingStorage[meetingId] = {
+                roomId: roomId,
+                participants: [],
+                createdAt: Date.now()
+            };
             
+            localStorage.setItem('meetingStorage', JSON.stringify(this.meetingStorage));
+
             this.updateLoadingText('Generating access token...');
-            
             this.token = this.generateToken(roomId);
-            
+
             this.updateLoadingText('Connecting to meeting...');
-            
+            await this.initializeMeeting();
+
             setTimeout(() => {
                 this.showMeetingScreen();
             }, 1500);
-            
         } catch (error) {
-            console.error('Error creating meeting:', error);
             this.showError('Failed to create meeting. Please try again.');
             this.showScreen('landing-screen');
         }
     }
 
     showJoinScreen() {
-        console.log('Showing join screen...');
         if (!this.validateUserName()) return;
         this.hideError('join-error-message');
         this.showScreen('join-screen');
     }
 
     async handleJoinMeeting() {
-        console.log('Handling join meeting...');
-        
         const meetingIdInput = document.getElementById('meetingId');
-        if (!meetingIdInput) {
-            console.error('Meeting ID input not found');
-            return;
-        }
-        
+        if (!meetingIdInput) return;
+
         const meetingId = meetingIdInput.value.trim();
-        console.log('Attempting to join meeting:', meetingId);
         
         if (!this.validateUserName()) return;
-        
+
         if (!meetingId || meetingId.length !== 6) {
             this.showError('Please enter a valid 6-digit meeting ID', 'join-error-message');
             meetingIdInput.focus();
@@ -373,32 +321,75 @@ class MeetingBase {
         this.hideError('join-error-message');
         this.showScreen('loading-screen');
         this.updateLoadingText('Looking for meeting...');
-        
+
         try {
-            let roomId = localStorage.getItem(`meeting_${meetingId}`);
-            
-            if (!roomId) {
+            const storedData = localStorage.getItem('meetingStorage');
+            this.meetingStorage = storedData ? JSON.parse(storedData) : {};
+
+            let roomId;
+            if (this.meetingStorage[meetingId]) {
+                roomId = this.meetingStorage[meetingId].roomId;
+            } else {
                 roomId = await this.createMeetingRoom();
-                localStorage.setItem(`meeting_${meetingId}`, roomId);
+                this.meetingStorage[meetingId] = {
+                    roomId: roomId,
+                    participants: [],
+                    createdAt: Date.now()
+                };
+                localStorage.setItem('meetingStorage', JSON.stringify(this.meetingStorage));
             }
-            
+
             this.currentMeetingId = meetingId;
             this.currentRoomId = roomId;
-            
+
             this.updateLoadingText('Generating access token...');
-            
             this.token = this.generateToken(roomId);
-            
+
             this.updateLoadingText('Connecting to meeting...');
-            
+            await this.initializeMeeting();
+
             setTimeout(() => {
                 this.showMeetingScreen();
             }, 1500);
-            
         } catch (error) {
-            console.error('Error joining meeting:', error);
             this.showError('Failed to join meeting. Please check the meeting ID and try again.', 'join-error-message');
             this.showScreen('join-screen');
+        }
+    }
+
+    async initializeMeeting() {
+        const userName = document.getElementById('userName').value.trim();
+        
+        if (this.meetingStorage[this.currentMeetingId]) {
+            const existingParticipant = this.meetingStorage[this.currentMeetingId].participants.find(p => p.name === userName);
+            
+            if (!existingParticipant) {
+                this.meetingStorage[this.currentMeetingId].participants.push({
+                    id: Date.now().toString(),
+                    name: userName,
+                    joinedAt: Date.now()
+                });
+                localStorage.setItem('meetingStorage', JSON.stringify(this.meetingStorage));
+            }
+        }
+
+        this.localParticipant = {
+            id: Date.now().toString(),
+            displayName: userName,
+            isLocal: true
+        };
+
+        await this.setupMediaStreams();
+    }
+
+    async setupMediaStreams() {
+        try {
+            this.localStream = await navigator.mediaDevices.getUserMedia({
+                video: this.isVideoEnabled,
+                audio: this.isAudioEnabled
+            });
+        } catch (error) {
+            this.localStream = null;
         }
     }
 
@@ -407,17 +398,15 @@ class MeetingBase {
         if (loadingText) {
             loadingText.textContent = text;
         }
-        console.log('Loading text updated:', text);
     }
 
     showMeetingScreen() {
-        console.log('Showing meeting screen...');
         this.showScreen('meeting-screen');
         this.updateMeetingInfo();
         this.updateParticipantCount();
         this.updateControlStates();
         this.setupLocalVideo();
-        
+
         const userName = document.getElementById('userName').value.trim();
         const localName = document.getElementById('localName');
         if (localName) {
@@ -426,21 +415,11 @@ class MeetingBase {
     }
 
     setupLocalVideo() {
-        console.log('Setting up local video...');
         const localVideo = document.getElementById('localVideo');
-        
-        if (localVideo && navigator.mediaDevices) {
-            navigator.mediaDevices.getUserMedia({ 
-                video: this.isVideoEnabled, 
-                audio: this.isAudioEnabled 
-            }).then(stream => {
-                localVideo.srcObject = stream;
-                this.localStream = stream;
-                console.log('Local video stream established');
-            }).catch(err => {
-                console.error('Error accessing media devices:', err);
-                localVideo.style.backgroundColor = '#1a1a1a';
-            });
+        if (localVideo && this.localStream) {
+            localVideo.srcObject = this.localStream;
+        } else if (localVideo) {
+            localVideo.style.backgroundColor = '#1a1a1a';
         }
     }
 
@@ -454,7 +433,10 @@ class MeetingBase {
     updateParticipantCount() {
         const participantCountEl = document.getElementById('participantCount');
         if (participantCountEl) {
-            const count = this.participants.size + 1;
+            let count = 1;
+            if (this.meetingStorage[this.currentMeetingId]) {
+                count = this.meetingStorage[this.currentMeetingId].participants.length;
+            }
             participantCountEl.textContent = `${count} participant${count !== 1 ? 's' : ''}`;
         }
     }
@@ -467,11 +449,9 @@ class MeetingBase {
         if (micBtn) {
             micBtn.classList.toggle('active', this.isAudioEnabled);
         }
-
         if (cameraBtn) {
             cameraBtn.classList.toggle('active', this.isVideoEnabled);
         }
-
         if (micIndicator) {
             micIndicator.textContent = this.isAudioEnabled ? '🎤' : '🔇';
         }
@@ -479,7 +459,6 @@ class MeetingBase {
 
     toggleMic() {
         this.isAudioEnabled = !this.isAudioEnabled;
-        console.log('Mic toggled:', this.isAudioEnabled);
         
         if (this.localStream) {
             const audioTracks = this.localStream.getAudioTracks();
@@ -487,13 +466,11 @@ class MeetingBase {
                 track.enabled = this.isAudioEnabled;
             });
         }
-        
         this.updateControlStates();
     }
 
     toggleCamera() {
         this.isVideoEnabled = !this.isVideoEnabled;
-        console.log('Camera toggled:', this.isVideoEnabled);
         
         if (this.localStream) {
             const videoTracks = this.localStream.getVideoTracks();
@@ -501,18 +478,17 @@ class MeetingBase {
                 track.enabled = this.isVideoEnabled;
             });
         }
-        
         this.updateControlStates();
     }
 
     async toggleScreenShare() {
-        console.log('Screen share toggled');
         const screenBtn = document.getElementById('screenBtn');
         
         try {
             if (this.isScreenSharing) {
                 this.isScreenSharing = false;
                 if (screenBtn) screenBtn.classList.remove('active');
+                await this.setupMediaStreams();
                 this.setupLocalVideo();
             } else {
                 if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
@@ -528,21 +504,25 @@ class MeetingBase {
                 }
             }
         } catch (error) {
-            console.error('Error toggling screen share:', error);
             this.showError('Failed to toggle screen sharing');
         }
     }
 
     showParticipantsList() {
-        const count = this.participants.size + 1;
-        const userName = document.getElementById('userName').value.trim();
-        const allNames = [userName + ' (You)', ...Array.from(this.participants.values()).map(p => p.displayName)];
+        let participants = ['You'];
         
-        alert(`Participants (${count}):\n${allNames.join('\n')}`);
+        if (this.meetingStorage[this.currentMeetingId]) {
+            const otherParticipants = this.meetingStorage[this.currentMeetingId].participants
+                .filter(p => p.name !== document.getElementById('userName').value.trim())
+                .map(p => p.name);
+            participants = participants.concat(otherParticipants);
+        }
+
+        const count = participants.length;
+        alert(`Participants (${count}):\n${participants.join('\n')}`);
     }
 
     leaveMeeting() {
-        console.log('Leaving meeting...');
         this.handleMeetingLeft();
     }
 
@@ -551,65 +531,36 @@ class MeetingBase {
             this.localStream.getTracks().forEach(track => track.stop());
             this.localStream = null;
         }
-        
+
         this.meeting = null;
         this.currentMeetingId = null;
         this.currentRoomId = null;
         this.token = null;
         this.localParticipant = null;
         this.participants.clear();
-        
         this.isAudioEnabled = true;
         this.isVideoEnabled = true;
         this.isScreenSharing = false;
-        
+
         const videoGrid = document.getElementById('videoGrid');
         if (videoGrid) {
             videoGrid.innerHTML = `
-                <div class="video-placeholder local-video">
+                <div class="video-placeholder">
                     <video id="localVideo" autoplay muted playsinline></video>
                     <div class="participant-overlay">
-                        <span class="participant-name" id="localName">You</span>
+                        <span id="localName" class="participant-name">Loading...</span>
                         <div class="participant-controls">
-                            <span class="mic-indicator" id="localMicIndicator">🎤</span>
+                            <span id="localMicIndicator" class="mic-indicator">🎤</span>
                         </div>
                     </div>
                 </div>
             `;
         }
-        
-        const meetingIdInput = document.getElementById('meetingId');
-        if (meetingIdInput) {
-            meetingIdInput.value = '';
-        }
-        
+
         this.showScreen('landing-screen');
-        console.log('Returned to landing screen');
     }
 }
 
-let meetingBaseInstance = null;
-
-function initializeMeetingBase() {
-    console.log('Initializing Meeting Base instance...');
-    if (!meetingBaseInstance) {
-        meetingBaseInstance = new MeetingBase();
-    }
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeMeetingBase);
-} else {
-    initializeMeetingBase();
-}
-
-window.addEventListener('error', (event) => {
-    console.error('Global error:', event.error);
-    if (meetingBaseInstance) {
-        meetingBaseInstance.showError('An unexpected error occurred. Please refresh the page.');
-    }
-});
-
-window.addEventListener('unhandledrejection', (event) => {
-    console.error('Unhandled promise rejection:', event.reason);
+window.addEventListener('DOMContentLoaded', () => {
+    new MeetingBase();
 });
