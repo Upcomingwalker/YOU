@@ -3,6 +3,7 @@ class MeetingBase {
         this.apiKey = '364c6c1f-2426-4f4b-a0f1-ff137b39b423';
         this.secret = '2089ec181d92ac7c837285e56418ffd22591472458c15c61ac08724ed33b252d';
         this.apiEndpoint = 'https://api.videosdk.live/v2/rooms';
+        this.validateEndpoint = 'https://api.videosdk.live/v1/meetings';
         this.meeting = null;
         this.currentMeetingId = null;
         this.currentRoomId = null;
@@ -14,6 +15,7 @@ class MeetingBase {
         this.localStream = null;
         this.participants = new Map();
         this.meetingStorage = {};
+        this.centralMeetings = {};
         setTimeout(() => this.initializeApp(), 100);
     }
 
@@ -21,6 +23,18 @@ class MeetingBase {
         this.loadUserData();
         this.bindEvents();
         this.showScreen('landing-screen');
+        this.loadCentralMeetings();
+    }
+
+    loadCentralMeetings() {
+        const stored = localStorage.getItem('centralMeetingRegistry');
+        if (stored) {
+            this.centralMeetings = JSON.parse(stored);
+        }
+    }
+
+    saveCentralMeetings() {
+        localStorage.setItem('centralMeetingRegistry', JSON.stringify(this.centralMeetings));
     }
 
     loadUserData() {
@@ -261,6 +275,38 @@ class MeetingBase {
         }
     }
 
+    async validateMeetingExists(meetingId) {
+        if (this.centralMeetings[meetingId]) {
+            return {
+                exists: true,
+                roomId: this.centralMeetings[meetingId].roomId
+            };
+        }
+
+        try {
+            const tempToken = this.generateToken('temp');
+            const response = await fetch(`${this.validateEndpoint}/${meetingId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${tempToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return {
+                    exists: true,
+                    roomId: data.meetingId || data.roomId
+                };
+            }
+            
+            return { exists: false };
+        } catch (error) {
+            return { exists: false };
+        }
+    }
+
     async handleCreateMeeting() {
         if (!this.validateUserName()) return;
 
@@ -274,14 +320,15 @@ class MeetingBase {
             
             this.currentMeetingId = meetingId;
             this.currentRoomId = roomId;
-            
-            this.meetingStorage[meetingId] = {
+
+            this.centralMeetings[meetingId] = {
                 roomId: roomId,
                 participants: [],
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                createdBy: document.getElementById('userName').value.trim()
             };
             
-            localStorage.setItem('meetingStorage', JSON.stringify(this.meetingStorage));
+            this.saveCentralMeetings();
 
             this.updateLoadingText('Generating access token...');
             this.token = this.generateToken(roomId);
@@ -320,39 +367,47 @@ class MeetingBase {
 
         this.hideError('join-error-message');
         this.showScreen('loading-screen');
-        this.updateLoadingText('Looking for meeting...');
+        this.updateLoadingText('Validating meeting ID...');
 
         try {
-            const storedData = localStorage.getItem('meetingStorage');
-            this.meetingStorage = storedData ? JSON.parse(storedData) : {};
-
-            let roomId;
-            if (this.meetingStorage[meetingId]) {
-                roomId = this.meetingStorage[meetingId].roomId;
-            } else {
-                roomId = await this.createMeetingRoom();
-                this.meetingStorage[meetingId] = {
-                    roomId: roomId,
-                    participants: [],
-                    createdAt: Date.now()
-                };
-                localStorage.setItem('meetingStorage', JSON.stringify(this.meetingStorage));
+            const validation = await this.validateMeetingExists(meetingId);
+            
+            if (!validation.exists) {
+                this.showError('Meeting not found. Please check the meeting ID and try again.', 'join-error-message');
+                this.showScreen('join-screen');
+                return;
             }
 
+            this.updateLoadingText('Meeting found. Connecting...');
+            
             this.currentMeetingId = meetingId;
-            this.currentRoomId = roomId;
+            this.currentRoomId = validation.roomId;
+
+            if (this.centralMeetings[meetingId]) {
+                const userName = document.getElementById('userName').value.trim();
+                const existingParticipant = this.centralMeetings[meetingId].participants.find(p => p.name === userName);
+                
+                if (!existingParticipant) {
+                    this.centralMeetings[meetingId].participants.push({
+                        id: Date.now().toString(),
+                        name: userName,
+                        joinedAt: Date.now()
+                    });
+                    this.saveCentralMeetings();
+                }
+            }
 
             this.updateLoadingText('Generating access token...');
-            this.token = this.generateToken(roomId);
+            this.token = this.generateToken(validation.roomId);
 
-            this.updateLoadingText('Connecting to meeting...');
+            this.updateLoadingText('Joining meeting...');
             await this.initializeMeeting();
 
             setTimeout(() => {
                 this.showMeetingScreen();
             }, 1500);
         } catch (error) {
-            this.showError('Failed to join meeting. Please check the meeting ID and try again.', 'join-error-message');
+            this.showError('Failed to validate meeting. Please try again.', 'join-error-message');
             this.showScreen('join-screen');
         }
     }
@@ -360,19 +415,6 @@ class MeetingBase {
     async initializeMeeting() {
         const userName = document.getElementById('userName').value.trim();
         
-        if (this.meetingStorage[this.currentMeetingId]) {
-            const existingParticipant = this.meetingStorage[this.currentMeetingId].participants.find(p => p.name === userName);
-            
-            if (!existingParticipant) {
-                this.meetingStorage[this.currentMeetingId].participants.push({
-                    id: Date.now().toString(),
-                    name: userName,
-                    joinedAt: Date.now()
-                });
-                localStorage.setItem('meetingStorage', JSON.stringify(this.meetingStorage));
-            }
-        }
-
         this.localParticipant = {
             id: Date.now().toString(),
             displayName: userName,
@@ -380,6 +422,44 @@ class MeetingBase {
         };
 
         await this.setupMediaStreams();
+        this.simulateRemoteParticipants();
+    }
+
+    simulateRemoteParticipants() {
+        if (this.centralMeetings[this.currentMeetingId]) {
+            const currentUser = document.getElementById('userName').value.trim();
+            const remoteParticipants = this.centralMeetings[this.currentMeetingId].participants
+                .filter(p => p.name !== currentUser);
+
+            setTimeout(() => {
+                this.addRemoteParticipants(remoteParticipants);
+            }, 2000);
+        }
+    }
+
+    addRemoteParticipants(participants) {
+        const videoGrid = document.getElementById('videoGrid');
+        if (!videoGrid) return;
+
+        participants.forEach((participant, index) => {
+            setTimeout(() => {
+                const videoPlaceholder = document.createElement('div');
+                videoPlaceholder.className = 'video-placeholder';
+                videoPlaceholder.innerHTML = `
+                    <div style="background: linear-gradient(45deg, #1a1a1a, #333); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; width: 100%; height: 100%;">
+                        ${participant.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="participant-overlay">
+                        <span class="participant-name">${participant.name}</span>
+                        <div class="participant-controls">
+                            <span class="mic-indicator">🎤</span>
+                        </div>
+                    </div>
+                `;
+                videoGrid.appendChild(videoPlaceholder);
+                this.updateParticipantCount();
+            }, index * 1000);
+        });
     }
 
     async setupMediaStreams() {
@@ -434,8 +514,12 @@ class MeetingBase {
         const participantCountEl = document.getElementById('participantCount');
         if (participantCountEl) {
             let count = 1;
-            if (this.meetingStorage[this.currentMeetingId]) {
-                count = this.meetingStorage[this.currentMeetingId].participants.length;
+            if (this.centralMeetings[this.currentMeetingId]) {
+                count = this.centralMeetings[this.currentMeetingId].participants.length;
+            }
+            const videoGrid = document.getElementById('videoGrid');
+            if (videoGrid) {
+                count = Math.max(count, videoGrid.children.length);
             }
             participantCountEl.textContent = `${count} participant${count !== 1 ? 's' : ''}`;
         }
@@ -509,11 +593,12 @@ class MeetingBase {
     }
 
     showParticipantsList() {
-        let participants = ['You'];
+        let participants = [document.getElementById('userName').value.trim() + ' (You)'];
         
-        if (this.meetingStorage[this.currentMeetingId]) {
-            const otherParticipants = this.meetingStorage[this.currentMeetingId].participants
-                .filter(p => p.name !== document.getElementById('userName').value.trim())
+        if (this.centralMeetings[this.currentMeetingId]) {
+            const currentUser = document.getElementById('userName').value.trim();
+            const otherParticipants = this.centralMeetings[this.currentMeetingId].participants
+                .filter(p => p.name !== currentUser)
                 .map(p => p.name);
             participants = participants.concat(otherParticipants);
         }
@@ -530,6 +615,13 @@ class MeetingBase {
         if (this.localStream) {
             this.localStream.getTracks().forEach(track => track.stop());
             this.localStream = null;
+        }
+
+        if (this.centralMeetings[this.currentMeetingId]) {
+            const userName = document.getElementById('userName').value.trim();
+            this.centralMeetings[this.currentMeetingId].participants = 
+                this.centralMeetings[this.currentMeetingId].participants.filter(p => p.name !== userName);
+            this.saveCentralMeetings();
         }
 
         this.meeting = null;
