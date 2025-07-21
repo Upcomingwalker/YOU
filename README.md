@@ -35,15 +35,6 @@ Inspired by the **Nintendo Switch UI**, it merges productivityand AI intelligenc
 
 **Flat AI** is powered by **Google Gemini API**, offering real-time intelligent responses and acting as your virtual companion.
 
-### 🔐 Add your Gemini API key:
-
-Inside the `ai` JavaScript folder, add:
-
-```js
-const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
-```
-
----
 
 ## 🛠️ Run Locally
 
@@ -60,9 +51,6 @@ open index.html
 This project is live at:  
 🔗 [https://you-lps.pages.dev](https://you-lps.pages.dev)
 
-To deploy your own version:
-- Upload to **GitHub Pages**, **Cloudflare Pages**, or **Firebase Hosting**.
-- Make sure autoplay for videos/music follows browser permissions.
 
 ---
 
