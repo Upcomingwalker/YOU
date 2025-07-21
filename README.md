@@ -71,5 +71,5 @@ This project is live at:
 
 ## 🎖️ DynamiX 2025
 
-This project is officially submitted as a creative tech entry to **DynamiX 2025**, celebrating innovation and digital excellence in students.  
+This project is officially submitted as a creative tech entry to **DynamiX 2025**. 
 For more, visit [https://dynamix.co.in](https://dynamix.co.in).
