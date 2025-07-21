@@ -8,7 +8,7 @@
 ## 💡 Overview
 
 **YOU** is a futuristic, all-in-one dashboard designed specifically for students.  
-Inspired by the **Nintendo Switch UI**, it merges productivity, AI intelligence, and gamified tools to make learning **fun, focused, and fully personalized**.
+Inspired by the **Nintendo Switch UI**, it merges productivityand AI intelligence to make learning **fun, focused, and fully personalized**.
 
 > 🏫 Created by **Tanuj Sharma** & **Sparsh Jain**  
 > 🏫 From **Lovely Public Sr. Sec. School, Priyadarshini Vihar**
