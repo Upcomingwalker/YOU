@@ -16,6 +16,7 @@ const subjects = {
     }
 };
 
+//Backup Questions if AI didn't work.
 const questionBank = {
     Mathematics: {
         easy: [
