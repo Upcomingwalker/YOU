@@ -1,98 +1,171 @@
 <!DOCTYPE html>
-<html lang="en" data-color-scheme="dark">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Thynx Studio</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="App_Data/game/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="resources/lps.png">
+    <title>Thynx Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="App_Data/game/styles.css">
 </head>
 <body>
-  <header class="header flex items-center justify-center">
-    <h1 class="brand" aria-label="Thynx Studio">thynx studio</h1>
-  </header>
+    <div class="container">
+        <div class="header">
+            <h1>Thynx Studio</h1>
+            <p>Next-Gen AI Quiz Experience</p>
+        </div>
 
-  <main class="container flex justify-center items-center" style="min-height:calc(100vh - 70px);">
-    <section id="start" class="glass-card w-full" style="max-width: 900px;">
-      <h2 class="text-center mb-16">Prepare for your quiz</h2>
+        <div id="setupForm" class="card">
+            <h2 style="margin-bottom: 24px; font-size: 1.8rem; font-weight: 600;">Quiz Configuration</h2>
+            
+            <div class="form-group">
+                <label for="board">Educational Board</label>
+                <select id="board" class="form-control">
+                    <option value="">Select Board</option>
+                    <option value="CBSE">CBSE</option>
+                    <option value="ICSE">ICSE</option>
+                    <option value="State Board">State Board</option>
+                    <option value="IB">International Baccalaureate</option>
+                </select>
+            </div>
 
-      <div class="form-group">
-        <label class="form-label" for="classSelect">Class</label>
-        <select id="classSelect" class="form-control" aria-label="Select Class">
-          <option value="" selected disabled>-- Select Class --</option>
-          <option value="9">9</option>
-          <option value="10">10</option>
-          <option value="11">11</option>
-          <option value="12">12</option>
-        </select>
-      </div>
+            <div class="form-group">
+                <label for="class">Class</label>
+                <select id="class" class="form-control">
+                    <option value="">Select Class</option>
+                    <option value="6">Class 6</option>
+                    <option value="7">Class 7</option>
+                    <option value="8">Class 8</option>
+                    <option value="9">Class 9</option>
+                    <option value="10">Class 10</option>
+                    <option value="11">Class 11</option>
+                    <option value="12">Class 12</option>
+                </select>
+            </div>
 
-      <div class="form-group hidden" id="subjectGroup">
-        <label class="form-label" for="subjectSelect">Subject</label>
-        <select id="subjectSelect" class="form-control" aria-label="Select Subject">
-          <option value="" selected disabled>-- Select Subject --</option>
-          <option value="Hindi">Hindi</option>
-          <option value="English">English</option>
-          <option value="Mathematics">Mathematics</option>
-          <option value="Science">Science</option>
-          <option value="Social Science">Social Science</option>
-        </select>
-      </div>
+            <div id="streamGroup" class="form-group hidden">
+                <label for="stream">Stream</label>
+                <select id="stream" class="form-control">
+                    <option value="">Select Stream</option>
+                    <option value="Science">Science</option>
+                    <option value="Commerce">Commerce</option>
+                    <option value="Arts">Arts/Humanities</option>
+                </select>
+            </div>
 
-      <div class="form-group hidden" id="streamGroup">
-        <label class="form-label" for="streamSelect">Stream</label>
-        <select id="streamSelect" class="form-control" aria-label="Select Stream">
-          <option value="" selected disabled>-- Select Stream --</option>
-          <option value="Science">Science</option>
-          <option value="Commerce">Commerce</option>
-          <option value="Arts">Arts</option>
-        </select>
-      </div>
+            <div class="form-group">
+                <label for="subject">Subject</label>
+                <select id="subject" class="form-control">
+                    <option value="">Select Subject</option>
+                </select>
+            </div>
 
-      <div class="difficulty-wrapper flex justify-between gap-8 my-16" aria-label="Choose Difficulty">
-        <button class="btn btn--outline difficulty-btn" data-difficulty="Easy" aria-label="Easy Difficulty">Easy</button>
-        <button class="btn btn--outline difficulty-btn" data-difficulty="Medium" aria-label="Medium Difficulty">Medium</button>
-        <button class="btn btn--outline difficulty-btn" data-difficulty="Hard" aria-label="Hard Difficulty">Hard</button>
-      </div>
+            <div class="form-group">
+                <label>Difficulty Level</label>
+                <div class="difficulty-selector">
+                    <div class="difficulty-card" data-difficulty="easy">
+                        <h3>Easy</h3>
+                        <p>10 Questions</p>
+                        <p>Basic concepts</p>
+                    </div>
+                    <div class="difficulty-card" data-difficulty="medium">
+                        <h3>Medium</h3>
+                        <p>20 Questions</p>
+                        <p>Moderate difficulty</p>
+                    </div>
+                    <div class="difficulty-card" data-difficulty="hard">
+                        <h3>Hard</h3>
+                        <p>30 Questions</p>
+                        <p>Advanced level</p>
+                    </div>
+                </div>
+            </div>
 
-      <button id="startBtn" class="btn btn--primary w-full" disabled aria-label="Start Quiz">Start Quiz</button>
-    </section>
+            <button id="startQuiz" class="btn btn-primary">
+                <span class="material-icons">play_arrow</span>
+                Start Quiz
+            </button>
 
-    <section id="quiz" class="glass-card w-full hidden" style="max-width: 900px;">
-      <div class="flex justify-between items-center mb-16">
-        <div class="status status--info" id="questionCounter">Question 1 / 10</div>
-        <button class="btn btn--secondary btn--sm" id="returnDashboardQuiz" aria-label="Return to Dashboard from Quiz">Return to Dashboard</button>
-      </div>
-      <div class="progress mb-16">
-        <div class="progress__bar" id="progressBar" style="width:0%"></div>
-      </div>
-      <h3 id="questionText" class="mb-16"></h3>
-      <form id="optionsForm" class="options-container flex-col gap-8" aria-label="Answer Options"></form>
-      <button id="nextBtn" class="btn btn--primary mt-16" disabled aria-label="Next Question">Next</button>
-    </section>
+            <button id="testAPI" class="btn btn-secondary" style="margin-left: 16px;">
+                <span class="material-icons">settings</span>
+                Test Flat AI
+            </button>
 
-    <section id="result" class="glass-card w-full hidden" style="max-width: 900px;">
-      <div class="flex justify-between items-center mb-16">
-        <h2>Your Result</h2>
-        <button class="btn btn--secondary btn--sm" id="returnDashboardResult" aria-label="Return to Dashboard from Result">Return to Dashboard</button>
-      </div>
-      <h3 id="resultMeta" class="text-center mb-16"></h3>
-      <div class="score-ring flex justify-center items-center mb-16" id="scoreRing">0/0</div>
+            <div id="messageContainer"></div>
+        </div>
 
-      <details id="incorrectDetails" class="mb-16 hidden">
-        <summary class="btn btn--outline">View Incorrect Answers</summary>
-        <div id="incorrectList" class="mt-8"></div>
-      </details>
+        <div id="loadingScreen" class="card hidden">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div id="loadingText" class="loading-text">Generating questions...</div>
+                <div id="loadingDetails" class="loading-details"></div>
+            </div>
+        </div>
 
-      <div class="flex gap-16 mb-16">
-        <button id="explainBtn" class="btn btn--primary btn--full-width" aria-label="Explain Incorrect Answers with Gemini">Explain with Gemini</button>
-        <button id="retakeBtn" class="btn btn--outline btn--full-width" aria-label="Retake Quiz">Retake</button>
-      </div>
+        <div id="quizSection" class="hidden">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+            
+            <div id="questionCard" class="card">
+            </div>
 
-      <pre id="geminiResponse" class="mt-16 hidden" aria-live="polite"></pre>
-    </section>
-  </main>
+            <div style="display: flex; justify-content: space-between; margin-top: 24px; flex-wrap: wrap; gap: 16px;">
+                <button id="prevBtn" class="btn btn-secondary">
+                    <span class="material-icons">arrow_back</span>
+                    Previous
+                </button>
+                <button id="nextBtn" class="btn btn-primary">
+                    Next
+                    <span class="material-icons">arrow_forward</span>
+                </button>
+                <button id="submitBtn" class="btn btn-primary hidden">
+                    <span class="material-icons">check</span>
+                    Submit Quiz
+                </button>
+            </div>
+        </div>
 
-  <script type="module" src="App_Data/game/script.js"></script>
+        <div id="resultsSection" class="card hidden">
+            <div class="results-card">
+                <div id="scoreCircle" class="score-circle">
+                    <span id="scoreText">0%</span>
+                </div>
+                <h2 id="resultTitle" style="margin-bottom: 16px; font-size: 2rem;">Quiz Complete!</h2>
+                <p id="resultDescription" style="font-size: 1.1rem; color: var(--text-secondary);"></p>
+                
+                <div style="margin-top: 32px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+                    <button id="reviewBtn" class="btn btn-secondary">
+                        <span class="material-icons">visibility</span>
+                        Review Answers
+                    </button>
+                    <button id="newQuizBtn" class="btn btn-primary">
+                        <span class="material-icons">refresh</span>
+                        New Quiz
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="reviewSection" class="card hidden">
+            <h2 style="margin-bottom: 24px; font-size: 1.8rem;">Quiz Review</h2>
+            <div id="reviewContent">
+            </div>
+            <button id="backToResultsBtn" class="btn btn-secondary">
+                <span class="material-icons">arrow_back</span>
+                Back to Results
+            </button>
+        </div>
+
+        <div id="historySection" class="card">
+            <h2 style="margin-bottom: 24px; font-size: 1.8rem;">Quiz History</h2>
+            <div id="historyContent">
+                <p style="color: var(--text-secondary); text-align: center; font-size: 1.1rem;">No quiz history yet. Take your first quiz!</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="App_Data/game/script.js"></script>
 </body>
 </html>
