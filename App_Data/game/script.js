@@ -1,293 +1,708 @@
-import { GoogleGenAI } from 'https://esm.run/@google/genai';
+const GEMINI_API_KEY = 'AIzaSyAFVEMaTpSIFBYJ4Wp3Ol8p9ZDlMk6fiMk';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
-const easyQ = [
-  { question: "What is 7 + 8?", options: ["13", "14", "15", "16"], answer: 2 },
-  { question: "Which planet is known as the Red Planet?", options: ["Venus", "Mars", "Jupiter", "Saturn"], answer: 1 },
-  { question: "Boiling point of water at sea level is?", options: ["90°C", "95°C", "100°C", "110°C"], answer: 2 },
-  { question: "What gas do plants absorb?", options: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Hydrogen"], answer: 1 },
-  { question: "Binary of decimal 5 is", options: ["101", "010", "100", "111"], answer: 0 },
-  { question: "1 byte equals how many bits?", options: ["4", "8", "16", "32"], answer: 1 },
-  { question: "How many degrees in a right angle?", options: ["45°", "90°", "180°", "360°"], answer: 1 },
-  { question: "What is H₂O?", options: ["Salt", "Water", "Hydrogen Peroxide", "Ozone"], answer: 1 },
-  { question: "GUI stands for", options: ["Graphical User Interface", "General Utility Interface", "Global User Internet", "None"], answer: 0 },
-  { question: "Sound travels fastest in", options: ["Air", "Water", "Vacuum", "Steel"], answer: 3 }
-];
+let currentQuiz = null;
+let currentQuestionIndex = 0;
+let userAnswers = [];
+let selectedDifficulty = null;
+let isGeneratingQuestions = false;
 
-const mediumQ = [
-  { question: "Solve for x: 2x + 5 = 17", options: ["6", "5", "11", "12"], answer: 0 },
-  { question: "Time complexity of binary search?", options: ["O(n)", "O(log n)", "O(n log n)", "O(1)"], answer: 1 },
-  { question: "pH of neutral solution at 25°C", options: ["6", "7", "8", "5"], answer: 1 },
-  { question: "Speed of light in vacuum", options: ["3×10⁶ m/s", "3×10⁷ m/s", "3×10⁸ m/s", "3×10⁹ m/s"], answer: 2 },
-  { question: "Find derivative of x²", options: ["x", "2x", "x²", "2"], answer: 1 },
-  { question: "Which law states pressure inversely proportional to volume?", options: ["Boyle's", "Charles'", "Gay-Lussac", "Avogadro"], answer: 0 },
-  { question: "Which layer of OSI handles routing?", options: ["Transport", "Network", "Data Link", "Session"], answer: 1 },
-  { question: "Convert 0.25 to fraction", options: ["1/2", "1/3", "1/4", "2/5"], answer: 2 },
-  { question: "Probability of getting 2 heads in 3 tosses", options: ["1/8", "3/8", "1/3", "1/2"], answer: 1 },
-  { question: "Which vitamin deficiency causes scurvy?", options: ["A", "B1", "C", "D"], answer: 2 },
-  { question: "Matrix A 2×3, B 3×4. Order of AB?", options: ["2×4", "3×4", "2×3", "4×4"], answer: 0 },
-  { question: "DNA → RNA enzyme", options: ["DNA ligase", "RNA polymerase", "DNA polymerase", "Helicase"], answer: 1 },
-  { question: "Beta decay emits", options: ["Helium nucleus", "Electron", "Photon", "Neutron"], answer: 1 },
-  { question: "Which sorting algorithm is stable?", options: ["Quick sort", "Merge sort", "Heap sort", "Selection sort"], answer: 1 },
-  { question: "Integral of 3x²", options: ["x³", "x³ + C", "x² + C", "x²"], answer: 1 },
-  { question: "Which gas is NOT greenhouse gas?", options: ["CO₂", "CH₄", "N₂", "N₂O"], answer: 2 },
-  { question: "Standard deviation symbol", options: ["σ", "μ", "π", "δ"], answer: 0 },
-  { question: "IPv6 address length", options: ["32 bits", "64 bits", "128 bits", "256 bits"], answer: 2 },
-  { question: "Hooke's law relates to", options: ["Elasticity", "Viscosity", "Diffusion", "Radiation"], answer: 0 },
-  { question: "Binomial coefficient C(6,2) equals", options: ["12", "15", "20", "30"], answer: 1 }
-];
+const subjects = {
+    '6-10': ['Mathematics', 'Science', 'English', 'Hindi', 'Social Studies', 'Sanskrit'],
+    '11-12': {
+        'Science': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'English'],
+        'Commerce': ['Accountancy', 'Business Studies', 'Economics', 'English', 'Mathematics'],
+        'Arts': ['History', 'Geography', 'Political Science', 'English', 'Hindi', 'Psychology', 'Sociology']
+    }
+};
 
-const hardQ = [
-  { question: "Evaluate: Σ₁⁵⁰ k", options: ["1125", "1225", "1275", "1325"], answer: 1 },
-  { question: "Heisenberg principle relates", options: ["Force & distance", "Position & momentum", "Energy & mass", "Pressure & volume"], answer: 1 },
-  { question: "Laplace transform of sin(at)", options: ["a/(s²+a²)", "s/(s²+a²)", "a²/(s²+a²)", "1/(s²+a²)"], answer: 0 },
-  { question: "Binding energy per nucleon max for", options: ["Hydrogen", "Iron-56", "Uranium-238", "Helium-4"], answer: 1 },
-  { question: "AVL tree balance factor range", options: ["-2 to 2", "-1 to 1", "0 to 1", "1 to 2"], answer: 1 },
-  { question: "Rate equation rate=k[A]² describes order", options: ["Zero", "First", "Second", "Third"], answer: 2 },
-  { question: "Cauchy-Schwarz inequality", options: ["|a·b| ≤ |a||b|", "|a×b| ≥ |a||b|", "|a+b| ≤ |a|+|b|", "None of these"], answer: 0 },
-  { question: "Kepler's third law", options: ["T² ∝ R³", "F=ma", "PV=nRT", "E=mc²"], answer: 0 },
-  { question: "Maclaurin series of ln(1+x) to x³", options: ["x - x²/2 + x³/3", "x - x²/2 + x³/6", "x² - x³/2", "None"], answer: 1 },
-  { question: "Quantum number 'l' represents", options: ["Spin", "Azimuthal", "Principal", "Magnetic"], answer: 1 },
-  { question: "Eigenvalues of [[2,1],[1,2]]", options: ["3,1", "1,1", "4,0", "2,2"], answer: 0 },
-  { question: "Critical angle occurs when light travels from", options: ["Denser to rarer", "Rarer to denser", "Vacuum to air", "Glass to diamond"], answer: 0 },
-  { question: "Which reaction in Haber process?", options: ["N₂+3H₂→2NH₃", "2H₂O→2H₂+O₂", "2SO₂+O₂→2SO₃", "C+O₂→CO₂"], answer: 0 },
-  { question: "Time complexity Dijkstra using binary heap", options: ["O(E log V)", "O(V²)", "O(E+V)", "O(V log V)"], answer: 0 },
-  { question: "Radius of curvature of y=x² at (1,1)", options: ["(1+4)^{3/2}/2", "(1+4)^{1/2}/2", "(1+4)^{3/2}/4", "None"], answer: 2 },
-  { question: "Half-life of C-14 is 5730y. Fraction left after 11460y", options: ["1/2", "1/4", "1/8", "1/16"], answer: 1 },
-  { question: "Number of onto functions from {1,2,3}→{a,b,c}", options: ["6", "27", "3", "15"], answer: 0 },
-  { question: "Which phenomenon proves particle nature of light?", options: ["Reflection", "Photoelectric effect", "Diffraction", "Refraction"], answer: 1 },
-  { question: "PCR technique amplifies", options: ["Proteins", "DNA", "Lipids", "RNA"], answer: 1 },
-  { question: "If sin θ = 1/2, θ in degrees could be", options: ["30°", "45°", "60°", "90°"], answer: 0 },
-  { question: "Von Neumann bottleneck refers to", options: ["Memory bandwidth", "CPU heat", "Power", "Cache"], answer: 0 },
-  { question: "P vs NP relates to", options: ["Cryptography", "Complexity theory", "Operating systems", "Databases"], answer: 1 },
-  { question: "Minimum x²+y² subject to x+y=10", options: ["50", "100", "25", "None"], answer: 0 }
-];
+const questionBank = {
+    Mathematics: {
+        easy: [
+            { question: "What is 15 + 23?", options: { A: "36", B: "38", C: "40", D: "42" }, correct: "B", explanation: "15 + 23 = 38" },
+            { question: "What is 8 × 7?", options: { A: "54", B: "56", C: "58", D: "60" }, correct: "B", explanation: "8 × 7 = 56" },
+            { question: "What is 144 ÷ 12?", options: { A: "10", B: "11", C: "12", D: "13" }, correct: "C", explanation: "144 ÷ 12 = 12" },
+            { question: "What is 6²?", options: { A: "32", B: "34", C: "36", D: "38" }, correct: "C", explanation: "6² = 6 × 6 = 36" },
+            { question: "What is ½ as a decimal?", options: { A: "0.25", B: "0.33", C: "0.50", D: "0.75" }, correct: "C", explanation: "½ = 0.50" },
+            { question: "What is 25% of 80?", options: { A: "15", B: "20", C: "25", D: "30" }, correct: "B", explanation: "25% of 80 = 20" },
+            { question: "What is the square root of 49?", options: { A: "6", B: "7", C: "8", D: "9" }, correct: "B", explanation: "√49 = 7" },
+            { question: "What is 3 + 4 × 2?", options: { A: "10", B: "11", C: "12", D: "14" }, correct: "B", explanation: "Following order of operations: 3 + (4 × 2) = 3 + 8 = 11" },
+            { question: "What is the perimeter of a square with side 5 cm?", options: { A: "15 cm", B: "20 cm", C: "25 cm", D: "30 cm" }, correct: "B", explanation: "Perimeter = 4 × side = 4 × 5 = 20 cm" },
+            { question: "Convert 3/5 to percentage", options: { A: "50%", B: "55%", C: "60%", D: "65%" }, correct: "C", explanation: "3/5 = 0.6 = 60%" }
+        ],
+        medium: [
+            { question: "If 2x + 5 = 17, what is x?", options: { A: "5", B: "6", C: "7", D: "8" }, correct: "B", explanation: "2x = 17 - 5 = 12, so x = 6" },
+            { question: "What is the area of a triangle with base 8 cm and height 6 cm?", options: { A: "20 cm²", B: "22 cm²", C: "24 cm²", D: "26 cm²" }, correct: "C", explanation: "Area = ½ × base × height = ½ × 8 × 6 = 24 cm²" },
+            { question: "What is 30% of 150?", options: { A: "40", B: "45", C: "50", D: "55" }, correct: "B", explanation: "30% of 150 = 0.30 × 150 = 45" }
+        ],
+        hard: [
+            { question: "What is the derivative of x³ + 2x² - 5x + 3?", options: { A: "3x² + 4x - 5", B: "3x² + 2x - 5", C: "x² + 4x - 5", D: "3x + 4x - 5" }, correct: "A", explanation: "d/dx(x³ + 2x² - 5x + 3) = 3x² + 4x - 5" }
+        ]
+    },
+    Science: {
+        easy: [
+            { question: "What is the chemical formula for water?", options: { A: "H2O", B: "CO2", C: "NaCl", D: "O2" }, correct: "A", explanation: "Water consists of 2 hydrogen atoms and 1 oxygen atom" },
+            { question: "How many bones are in an adult human body?", options: { A: "106", B: "206", C: "306", D: "406" }, correct: "B", explanation: "An adult human has 206 bones" }
+        ],
+        medium: [
+            { question: "What is photosynthesis?", options: { A: "Breathing in plants", B: "Making food using sunlight", C: "Plant reproduction", D: "Plant growth" }, correct: "B", explanation: "Photosynthesis converts sunlight, CO₂, and water into glucose" }
+        ],
+        hard: [
+            { question: "What is the second law of thermodynamics?", options: { A: "Energy cannot be created or destroyed", B: "Entropy always increases", C: "Heat flows from hot to cold", D: "Temperature is absolute" }, correct: "B", explanation: "The second law states that entropy of an isolated system always increases" }
+        ]
+    },
+    English: {
+        easy: [
+            { question: "What is the past tense of 'go'?", options: { A: "goed", B: "went", C: "gone", D: "going" }, correct: "B", explanation: "The past tense of 'go' is 'went'" },
+            { question: "Which of these is a noun?", options: { A: "quickly", B: "beautiful", C: "table", D: "running" }, correct: "C", explanation: "'Table' is a thing, making it a noun" }
+        ],
+        medium: [
+            { question: "What is a metaphor?", options: { A: "Comparison using 'like' or 'as'", B: "Direct comparison without 'like' or 'as'", C: "An exaggeration", D: "A rhetorical question" }, correct: "B", explanation: "A metaphor directly compares without using 'like' or 'as'" }
+        ],
+        hard: [
+            { question: "In which literary period did Shakespeare write?", options: { A: "Victorian", B: "Romantic", C: "Elizabethan", D: "Modern" }, correct: "C", explanation: "Shakespeare wrote during the Elizabethan era" }
+        ]
+    }
+};
 
-const classSelect = document.getElementById('classSelect');
-const subjectGroup = document.getElementById('subjectGroup');
-const subjectSelect = document.getElementById('subjectSelect');
-const streamGroup = document.getElementById('streamGroup');
-const streamSelect = document.getElementById('streamSelect');
-const difficultyBtns = document.querySelectorAll('.difficulty-btn');
-const startBtn = document.getElementById('startBtn');
+const elements = {
+    setupForm: document.getElementById('setupForm'),
+    loadingScreen: document.getElementById('loadingScreen'),
+    quizSection: document.getElementById('quizSection'),
+    resultsSection: document.getElementById('resultsSection'),
+    reviewSection: document.getElementById('reviewSection'),
+    historySection: document.getElementById('historySection'),
+    board: document.getElementById('board'),
+    classSelect: document.getElementById('class'),
+    streamGroup: document.getElementById('streamGroup'),
+    stream: document.getElementById('stream'),
+    subject: document.getElementById('subject'),
+    startQuiz: document.getElementById('startQuiz'),
+    testAPI: document.getElementById('testAPI'),
+    questionCard: document.getElementById('questionCard'),
+    progressFill: document.getElementById('progressFill'),
+    prevBtn: document.getElementById('prevBtn'),
+    nextBtn: document.getElementById('nextBtn'),
+    submitBtn: document.getElementById('submitBtn'),
+    scoreCircle: document.getElementById('scoreCircle'),
+    scoreText: document.getElementById('scoreText'),
+    resultTitle: document.getElementById('resultTitle'),
+    resultDescription: document.getElementById('resultDescription'),
+    reviewBtn: document.getElementById('reviewBtn'),
+    newQuizBtn: document.getElementById('newQuizBtn'),
+    reviewContent: document.getElementById('reviewContent'),
+    backToResultsBtn: document.getElementById('backToResultsBtn'),
+    historyContent: document.getElementById('historyContent'),
+    messageContainer: document.getElementById('messageContainer'),
+    loadingText: document.getElementById('loadingText'),
+    loadingDetails: document.getElementById('loadingDetails')
+};
 
-const startScreen = document.getElementById('start');
-const quizScreen = document.getElementById('quiz');
-const resultScreen = document.getElementById('result');
-
-const questionCounter = document.getElementById('questionCounter');
-const questionText = document.getElementById('questionText');
-const optionsForm = document.getElementById('optionsForm');
-const nextBtn = document.getElementById('nextBtn');
-const progressBar = document.getElementById('progressBar');
-
-const scoreRing = document.getElementById('scoreRing');
-const incorrectDetails = document.getElementById('incorrectDetails');
-const incorrectList = document.getElementById('incorrectList');
-const explainBtn = document.getElementById('explainBtn');
-const retakeBtn = document.getElementById('retakeBtn');
-const returnDashboardQuiz = document.getElementById('returnDashboardQuiz');
-const returnDashboardResult = document.getElementById('returnDashboardResult');
-const geminiResponse = document.getElementById('geminiResponse');
-const resultMeta = document.getElementById('resultMeta');
-
-let selectedClass = '';
-let selectedSubject = '';
-let selectedStream = '';
-let selectedDifficulty = '';
-
-let questions = [];
-let currentIndex = 0;
-let correctCount = 0;
-let incorrectPairs = [];
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-function updateStartState() {
-  const classChosen = !!selectedClass;
-  const diffChosen = !!selectedDifficulty;
-  let extraOk = true;
-  if (selectedClass === '9' || selectedClass === '10') {
-    extraOk = !!selectedSubject;
-  } else if (selectedClass === '11' || selectedClass === '12') {
-    extraOk = !!selectedStream;
-  }
-  startBtn.disabled = !(classChosen && diffChosen && extraOk);
-}
-
-function resetDifficultyButtons() {
-  difficultyBtns.forEach(btn => btn.classList.remove('active'));
-}
-
-function showSubjectStreamFields() {
-  selectedSubject = '';
-  selectedStream = '';
-  subjectSelect.value = '';
-  streamSelect.value = '';
-
-  if (selectedClass === '9' || selectedClass === '10') {
-    subjectGroup.classList.remove('hidden');
-    streamGroup.classList.add('hidden');
-  } else if (selectedClass === '11' || selectedClass === '12') {
-    streamGroup.classList.remove('hidden');
-    subjectGroup.classList.add('hidden');
-  } else {
-    subjectGroup.classList.add('hidden');
-    streamGroup.classList.add('hidden');
-  }
-  updateStartState();
-}
-
-classSelect.addEventListener('change', e => {
-  selectedClass = e.target.value;
-  showSubjectStreamFields();
-});
-
-subjectSelect.addEventListener('change', e => {
-  selectedSubject = e.target.value;
-  updateStartState();
-});
-
-streamSelect.addEventListener('change', e => {
-  selectedStream = e.target.value;
-  updateStartState();
-});
-
-difficultyBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    resetDifficultyButtons();
-    btn.classList.add('active');
-    selectedDifficulty = btn.dataset.difficulty;
-    updateStartState();
-  });
-});
-
-startBtn.addEventListener('click', initQuiz);
-nextBtn.addEventListener('click', handleNext);
-retakeBtn.addEventListener('click', initQuiz);
-returnDashboardQuiz.addEventListener('click', () => {
-  if (confirm('Return to dashboard? Progress will be lost.')) location.reload();
-});
-returnDashboardResult.addEventListener('click', () => location.reload());
-
-explainBtn.addEventListener('click', async () => {
-  if (!incorrectPairs.length) return;
-  explainBtn.disabled = true;
-  explainBtn.textContent = 'Loading...';
-  await fetchGemini();
-});
-
-function initQuiz() {
-  const bank = selectedDifficulty === 'Easy' ? easyQ : selectedDifficulty === 'Medium' ? mediumQ : hardQ;
-  questions = shuffle([...bank]);
-  const countMap = { Easy: 10, Medium: 20, Hard: 25 };
-  questions = questions.slice(0, countMap[selectedDifficulty] || questions.length);
-
-  currentIndex = 0;
-  correctCount = 0;
-  incorrectPairs = [];
-
-  quizScreen.classList.remove('hidden');
-  startScreen.classList.add('hidden');
-  resultScreen.classList.add('hidden');
-  geminiResponse.classList.add('hidden');
-  geminiResponse.textContent = '';
-  explainBtn.disabled = false;
-  explainBtn.textContent = 'Explain with Gemini';
-
-  loadQuestion();
-}
-
-function loadQuestion() {
-  const qObj = questions[currentIndex];
-  questionCounter.textContent = `Question ${currentIndex + 1} / ${questions.length}`;
-  questionText.textContent = qObj.question;
-
-  optionsForm.innerHTML = '';
-  qObj.options.forEach((opt, idx) => {
-    const id = `opt${currentIndex}_${idx}`;
-    const wrapper = document.createElement('div');
-    wrapper.className = 'option-wrapper';
-    wrapper.innerHTML = `
-      <input type="radio" name="option" id="${id}" class="option-input" value="${idx}" />
-      <label for="${id}" class="option-label">${opt}</label>
+function showMessage(message, type = 'info', details = null) {
+    const messageClasses = {
+        'error': 'error-message',
+        'success': 'success-message',
+        'info': 'info-message'
+    };
+    
+    const messageClass = messageClasses[type] || 'info-message';
+    const messageHtml = `
+        <div class="${messageClass}">
+            <strong>${type === 'error' ? 'Error:' : type === 'success' ? 'Success:' : 'Info:'}</strong> ${message}
+            ${details ? `<div class="debug-info">${details}</div>` : ''}
+        </div>
     `;
-    optionsForm.appendChild(wrapper);
-  });
-
-  optionsForm.addEventListener('change', () => {
-    nextBtn.disabled = false;
-  }, { once: true });
-
-  nextBtn.textContent = currentIndex === questions.length - 1 ? 'Finish Quiz' : 'Next';
-  nextBtn.disabled = true;
-  progressBar.style.width = `${(currentIndex / questions.length) * 100}%`;
+    elements.messageContainer.innerHTML = messageHtml;
+    
+    if (type !== 'error') {
+        setTimeout(() => {
+            elements.messageContainer.innerHTML = '';
+        }, 5000);
+    }
 }
 
-function handleNext() {
-  const chosenRadio = optionsForm.querySelector('input[name="option"]:checked');
-  if (!chosenRadio) return; 
-  const chosen = Number(chosenRadio.value);
-  const qObj = questions[currentIndex];
-
-  if (chosen === qObj.answer) {
-    correctCount++;
-  } else {
-    incorrectPairs.push({ question: qObj.question, chosen: qObj.options[chosen], correct: qObj.options[qObj.answer] });
-  }
-
-  currentIndex++;
-  if (currentIndex < questions.length) {
-    loadQuestion();
-  } else {
-    finishQuiz();
-  }
+function clearMessage() {
+    elements.messageContainer.innerHTML = '';
 }
 
-function finishQuiz() {
-  progressBar.style.width = '100%';
-  scoreRing.textContent = `${correctCount}/${questions.length}`;
+function updateLoadingStatus(message, details = '') {
+    elements.loadingText.textContent = message;
+    elements.loadingDetails.textContent = details;
+}
 
-  let meta = `Class ${selectedClass} • Difficulty ${selectedDifficulty}`;
-  if (selectedClass === '9' || selectedClass === '10') meta = `Class ${selectedClass} • Subject ${selectedSubject} • Difficulty ${selectedDifficulty}`;
-  if (selectedClass === '11' || selectedClass === '12') meta = `Class ${selectedClass} • Stream ${selectedStream} • Difficulty ${selectedDifficulty}`;
-  resultMeta.textContent = meta;
+async function testFlatAI() {
+    showMessage('Testing API connection with FLAT AI...', 'info');
+    
+    try {
+        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: "Generate a simple test response: Hello World"
+                    }]
+                }]
+            })
+        });
 
-  if (incorrectPairs.length) {
-    incorrectDetails.classList.remove('hidden');
-    incorrectList.innerHTML = incorrectPairs.map(p => `
-      <div class="incorrect-item">
-        <strong>Q:</strong> ${p.question}<br />
-        <strong>Your answer:</strong> ${p.chosen}<br />
-        <strong>Correct:</strong> ${p.correct}
-      </div>
+        console.log('API Test Response Status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('API Error:', errorText);
+            showMessage(`API test failed with status ${response.status}`, 'error', errorText);
+            return false;
+        }
+
+        const data = await response.json();
+        console.log('API Test Success:', data);
+        showMessage('API connection successful! FLAT AI is working perfectly.', 'success');
+        return true;
+    } catch (error) {
+        console.error('API Test Error:', error);
+        showMessage('API test failed - Network or CORS error', 'error', error.message);
+        return false;
+    }
+}
+
+function generateQuestionsFromBank(config) {
+    const subject = config.subject;
+    const difficulty = config.difficulty;
+    const questionCount = { easy: 10, medium: 20, hard: 30 }[difficulty];
+    
+    console.log(`Generating ${questionCount} questions for ${subject} - ${difficulty}`);
+    
+    let availableQuestions = [];
+    
+    if (questionBank[subject] && questionBank[subject][difficulty]) {
+        availableQuestions = [...questionBank[subject][difficulty]];
+    }
+    
+    let finalQuestions = [];
+    
+    if (availableQuestions.length >= questionCount) {
+        for (let i = availableQuestions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [availableQuestions[i], availableQuestions[j]] = [availableQuestions[j], availableQuestions[i]];
+        }
+        finalQuestions = availableQuestions.slice(0, questionCount);
+    } else {
+        finalQuestions = [...availableQuestions];
+        
+        const questionsNeeded = questionCount - availableQuestions.length;
+        console.log(`Need ${questionsNeeded} more questions`);
+        
+        for (let i = 0; i < questionsNeeded; i++) {
+            const baseIndex = i % availableQuestions.length;
+            const baseQuestion = availableQuestions[baseIndex];
+            
+            if (baseQuestion) {
+                finalQuestions.push({
+                    question: `${baseQuestion.question} (Variant ${Math.floor(i / availableQuestions.length) + 2})`,
+                    options: { ...baseQuestion.options },
+                    correct: baseQuestion.correct,
+                    explanation: baseQuestion.explanation
+                });
+            } else {
+                finalQuestions.push({
+                    question: `${subject} question ${finalQuestions.length + 1} (${difficulty} level)`,
+                    options: {
+                        A: `Option A for question ${finalQuestions.length + 1}`,
+                        B: `Option B for question ${finalQuestions.length + 1}`,
+                        C: `Option C for question ${finalQuestions.length + 1}`,
+                        D: `Option D for question ${finalQuestions.length + 1}`
+                    },
+                    correct: ["A", "B", "C", "D"][Math.floor(Math.random() * 4)],
+                    explanation: `Explanation for ${subject} question ${finalQuestions.length + 1}`
+                });
+            }
+        }
+    }
+    
+    console.log(`Generated ${finalQuestions.length} questions`);
+    return finalQuestions;
+}
+
+async function callFlatAI(config, retryCount = 0) {
+    const maxRetries = 2;
+    const questionCount = { easy: 10, medium: 20, hard: 30 }[config.difficulty];
+    
+    const prompt = `You are an expert educator. Generate EXACTLY ${questionCount} unique, high-quality multiple choice questions for ${config.subject} for ${config.board} Class ${config.class}${config.stream ? ` ${config.stream}` : ''} students.
+
+STRICT REQUIREMENTS:
+- Generate EXACTLY ${questionCount} questions, no more, no less
+- Each question must be unique and different
+- Difficulty level: ${config.difficulty}
+- Each question must have exactly 4 options (A, B, C, D)
+- Only one correct answer per question
+- Include educational explanation for each correct answer
+- Questions must be curriculum-appropriate and academically sound
+- Avoid repetitive or similar questions
+
+${config.difficulty === 'easy' ? 'Focus on: Basic concepts, definitions, simple calculations, fundamental principles' : 
+  config.difficulty === 'medium' ? 'Focus on: Application of concepts, moderate problem-solving, analysis, connections between ideas' :
+  'Focus on: Complex problem-solving, critical thinking, advanced concepts, synthesis of multiple ideas'}
+
+Return ONLY a valid JSON array with exactly ${questionCount} questions in this format:
+[
+  {
+    "question": "Clear, specific question text?",
+    "options": {
+      "A": "First option",
+      "B": "Second option",
+      "C": "Third option", 
+      "D": "Fourth option"
+    },
+    "correct": "B",
+    "explanation": "Clear explanation of why this answer is correct"
+  }
+]
+
+CRITICAL: Return ONLY the JSON array, no additional text, comments, or markdown formatting.`;
+
+    const requestBody = {
+        contents: [{
+            parts: [{
+                text: prompt
+            }]
+        }],
+        generationConfig: {
+            temperature: 0.3,
+            topK: 40,
+            topP: 0.8,
+            maxOutputTokens: 8192,
+        }
+    };
+
+    try {
+        console.log('Making API request for', questionCount, 'questions using FLAT AI...');
+        
+        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API Error ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+            throw new Error('Invalid API response structure');
+        }
+
+        const content = data.candidates[0].content.parts[0].text;
+        console.log('FLAT AI API Content:', content);
+
+        let cleanContent = content.trim();
+        cleanContent = cleanContent.replace(/``````\n?/g, '');
+        
+        const jsonMatch = cleanContent.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+            throw new Error('No valid JSON array found in response');
+        }
+
+        const questions = JSON.parse(jsonMatch[0]);
+        
+        if (!Array.isArray(questions)) {
+            throw new Error('Response is not a valid array');
+        }
+
+        const validQuestions = questions.filter(q => 
+            q.question && q.options && q.correct && q.explanation &&
+            q.options.A && q.options.B && q.options.C && q.options.D &&
+            ['A', 'B', 'C', 'D'].includes(q.correct)
+        );
+
+        if (validQuestions.length < questionCount * 0.8) {
+            throw new Error(`Not enough valid questions generated: ${validQuestions.length}/${questionCount}`);
+        }
+
+        console.log(`Successfully validated ${validQuestions.length} questions from FLAT AI`);
+        return validQuestions.slice(0, questionCount);
+
+    } catch (error) {
+        console.error(`FLAT AI API attempt ${retryCount + 1} failed:`, error);
+        
+        if (retryCount < maxRetries) {
+            updateLoadingStatus(`Retrying API call... (${retryCount + 1}/${maxRetries + 1})`, error.message);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return callFlatAI(config, retryCount + 1);
+        }
+        
+        throw error;
+    }
+}
+
+async function generateQuestions(config) {
+    try {
+        updateLoadingStatus('Connecting to FLAT AI servers...', 'Requesting custom questions from FLAT AI model');
+        
+        const questions = await callFlatAI(config);
+        
+        updateLoadingStatus('FLAT AI questions generated!', `Generated ${questions.length} custom questions`);
+        showMessage(`Successfully generated ${questions.length} AI-powered questions using FLAT AI!`, 'success');
+        
+        return questions;
+    } catch (error) {
+        console.error('FLAT AI generation failed:', error);
+        
+        updateLoadingStatus('Using curated question bank...', 'Loading high-quality questions');
+        showMessage('AI service temporarily unavailable, using curated questions for optimal experience', 'info');
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const questions = generateQuestionsFromBank(config);
+        
+        updateLoadingStatus('Questions ready!', `Loaded ${questions.length} curated questions`);
+        
+        return questions;
+    }
+}
+
+elements.classSelect.addEventListener('change', handleClassChange);
+elements.stream.addEventListener('change', updateSubjects);
+elements.startQuiz.addEventListener('click', startQuiz);
+elements.testAPI.addEventListener('click', testFlatAI);
+elements.prevBtn.addEventListener('click', () => navigateQuestion(-1));
+elements.nextBtn.addEventListener('click', () => navigateQuestion(1));
+elements.submitBtn.addEventListener('click', submitQuiz);
+elements.reviewBtn.addEventListener('click', showReview);
+elements.newQuizBtn.addEventListener('click', resetQuiz);
+elements.backToResultsBtn.addEventListener('click', () => showSection('resultsSection'));
+
+document.querySelectorAll('.difficulty-card').forEach(card => {
+    card.addEventListener('click', () => {
+        document.querySelectorAll('.difficulty-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedDifficulty = card.dataset.difficulty;
+    });
+});
+
+function handleClassChange() {
+    const selectedClass = elements.classSelect.value;
+    const isHigherSecondary = selectedClass === '11' || selectedClass === '12';
+    
+    elements.streamGroup.classList.toggle('hidden', !isHigherSecondary);
+    
+    if (!isHigherSecondary) {
+        elements.stream.value = '';
+        updateSubjects();
+    }
+}
+
+function updateSubjects() {
+    const selectedClass = elements.classSelect.value;
+    const selectedStream = elements.stream.value;
+    const subjectSelect = elements.subject;
+    
+    subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+    
+    if (!selectedClass) return;
+    
+    let availableSubjects = [];
+    
+    if (selectedClass === '11' || selectedClass === '12') {
+        if (selectedStream && subjects['11-12'][selectedStream]) {
+            availableSubjects = subjects['11-12'][selectedStream];
+        }
+    } else {
+        availableSubjects = subjects['6-10'];
+    }
+    
+    availableSubjects.forEach(subject => {
+        const option = document.createElement('option');
+        option.value = subject;
+        option.textContent = subject;
+        subjectSelect.appendChild(option);
+    });
+}
+
+async function startQuiz() {
+    if (isGeneratingQuestions) return;
+    
+    const config = {
+        board: elements.board.value,
+        class: elements.classSelect.value,
+        stream: elements.stream.value,
+        subject: elements.subject.value,
+        difficulty: selectedDifficulty
+    };
+
+    if (!config.board || !config.class || !config.subject || !config.difficulty) {
+        showMessage('Please fill all required fields and select difficulty level', 'error');
+        return;
+    }
+
+    if ((config.class === '11' || config.class === '12') && !config.stream) {
+        showMessage('Please select a stream for classes 11 and 12', 'error');
+        return;
+    }
+
+    clearMessage();
+    isGeneratingQuestions = true;
+    elements.startQuiz.disabled = true;
+    showSection('loadingScreen');
+
+    try {
+        const questions = await generateQuestions(config);
+        
+        currentQuiz = {
+            config,
+            questions,
+            startTime: new Date(),
+            id: Date.now()
+        };
+        
+        userAnswers = new Array(questions.length).fill(null);
+        currentQuestionIndex = 0;
+        
+        console.log(`Quiz started with ${questions.length} questions`);
+        
+        showSection('quizSection');
+        displayQuestion();
+        updateProgress();
+    } catch (error) {
+        console.error('Quiz generation failed completely:', error);
+        showMessage('Failed to generate quiz. Please try again.', 'error', error.message);
+        showSection('setupForm');
+    } finally {
+        isGeneratingQuestions = false;
+        elements.startQuiz.disabled = false;
+    }
+}
+
+function displayQuestion() {
+    if (!currentQuiz || currentQuestionIndex >= currentQuiz.questions.length) return;
+
+    const question = currentQuiz.questions[currentQuestionIndex];
+    const questionCard = elements.questionCard;
+
+    questionCard.innerHTML = `
+        <div class="question-header">
+            <div class="question-number">Question ${currentQuestionIndex + 1} of ${currentQuiz.questions.length}</div>
+        </div>
+        <div class="question-text">${question.question}</div>
+        <div class="options">
+            ${Object.entries(question.options).map(([key, value]) => `
+                <div class="option" data-option="${key}">
+                    <strong>${key}.</strong> ${value}
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    questionCard.querySelectorAll('.option').forEach(option => {
+        option.addEventListener('click', () => selectOption(option.dataset.option));
+    });
+
+    if (userAnswers[currentQuestionIndex]) {
+        const selectedOption = questionCard.querySelector(`[data-option="${userAnswers[currentQuestionIndex]}"]`);
+        if (selectedOption) {
+            selectedOption.classList.add('selected');
+        }
+    }
+
+    updateNavigationButtons();
+}
+
+function selectOption(option) {
+    elements.questionCard.querySelectorAll('.option').forEach(opt => 
+        opt.classList.remove('selected')
+    );
+    
+    elements.questionCard.querySelector(`[data-option="${option}"]`).classList.add('selected');
+    
+    userAnswers[currentQuestionIndex] = option;
+}
+
+function navigateQuestion(direction) {
+    currentQuestionIndex += direction;
+    currentQuestionIndex = Math.max(0, Math.min(currentQuestionIndex, currentQuiz.questions.length - 1));
+    
+    displayQuestion();
+    updateProgress();
+}
+
+function updateNavigationButtons() {
+    elements.prevBtn.style.visibility = currentQuestionIndex === 0 ? 'hidden' : 'visible';
+    
+    const isLastQuestion = currentQuestionIndex === currentQuiz.questions.length - 1;
+    elements.nextBtn.classList.toggle('hidden', isLastQuestion);
+    elements.submitBtn.classList.toggle('hidden', !isLastQuestion);
+}
+
+function updateProgress() {
+    const progress = ((currentQuestionIndex + 1) / currentQuiz.questions.length) * 100;
+    elements.progressFill.style.width = `${progress}%`;
+}
+
+function submitQuiz() {
+    const unanswered = userAnswers.filter(answer => answer === null).length;
+    if (unanswered > 0) {
+        if (!confirm(`You have ${unanswered} unanswered question${unanswered > 1 ? 's' : ''}. Submit anyway?`)) {
+            return;
+        }
+    }
+
+    const endTime = new Date();
+    const duration = Math.round((endTime - currentQuiz.startTime) / 1000);
+    const score = calculateScore();
+
+    const quizResult = {
+        ...currentQuiz,
+        endTime,
+        duration,
+        userAnswers: [...userAnswers],
+        score
+    };
+
+    saveQuizToHistory(quizResult);
+    showResults(quizResult);
+}
+
+function calculateScore() {
+    const correct = userAnswers.reduce((count, answer, index) => {
+        return count + (answer === currentQuiz.questions[index].correct ? 1 : 0);
+    }, 0);
+    
+    return {
+        correct,
+        total: currentQuiz.questions.length,
+        percentage: Math.round((correct / currentQuiz.questions.length) * 100)
+    };
+}
+
+function showResults(result) {
+    const { score } = result;
+    
+    elements.scoreText.textContent = `${score.percentage}%`;
+    elements.scoreCircle.className = 'score-circle';
+    
+    if (score.percentage >= 80) {
+        elements.resultTitle.textContent = 'Outstanding!';
+        elements.resultDescription.textContent = `Exceptional performance! You got ${score.correct} out of ${score.total} questions correct.`;
+    } else if (score.percentage >= 60) {
+        elements.resultTitle.textContent = 'Great Work!';
+        elements.resultDescription.textContent = `Well done! You got ${score.correct} out of ${score.total} questions correct.`;
+    } else {
+        elements.resultTitle.textContent = 'Keep Learning!';
+        elements.resultDescription.textContent = `You got ${score.correct} out of ${score.total} questions correct. Review and try again!`;
+    }
+
+    showSection('resultsSection');
+    updateHistory();
+}
+
+function showReview() {
+    if (!currentQuiz) return;
+
+    const reviewHTML = currentQuiz.questions.map((question, index) => {
+        const userAnswer = userAnswers[index];
+        const isCorrect = userAnswer === question.correct;
+        const statusClass = isCorrect ? 'correct' : 'incorrect';
+
+        return `
+            <div class="review-question ${statusClass}">
+                <h3 style="margin-bottom: 12px;">Question ${index + 1}</h3>
+                <p style="margin-bottom: 16px;"><strong>${question.question}</strong></p>
+                <div style="margin: 16px 0;">
+                    ${Object.entries(question.options).map(([key, value]) => {
+                        let optionClass = 'review-option';
+                        if (key === question.correct) {
+                            optionClass += ' correct';
+                        } else if (key === userAnswer && !isCorrect) {
+                            optionClass += ' selected-wrong';
+                        }
+                        
+                        return `<div class="${optionClass}"><strong>${key}.</strong> ${value}</div>`;
+                    }).join('')}
+                </div>
+                <p style="margin-top: 16px;"><strong>Explanation:</strong> ${question.explanation}</p>
+                ${!isCorrect ? `<p style="color: var(--error-red); margin-top: 12px;"><strong>Your answer:</strong> ${userAnswer || 'Not answered'}</p>` : ''}
+            </div>
+        `;
+    }).join('');
+
+    elements.reviewContent.innerHTML = reviewHTML;
+    showSection('reviewSection');
+}
+
+function saveQuizToHistory(result) {
+    const history = JSON.parse(localStorage.getItem('quizHistory') || '[]');
+    history.unshift({
+        id: result.id,
+        date: result.endTime.toLocaleDateString(),
+        time: result.endTime.toLocaleTimeString(),
+        subject: result.config.subject,
+        difficulty: result.config.difficulty,
+        score: result.score,
+        duration: result.duration
+    });
+    
+    localStorage.setItem('quizHistory', JSON.stringify(history.slice(0, 10)));
+}
+
+function updateHistory() {
+    const history = JSON.parse(localStorage.getItem('quizHistory') || '[]');
+    
+    if (history.length === 0) {
+        elements.historyContent.innerHTML = '<p style="color: var(--text-secondary); text-align: center; font-size: 1.1rem;">No quiz history yet. Take your first quiz!</p>';
+        return;
+    }
+
+    elements.historyContent.innerHTML = history.map(quiz => `
+        <div class="history-item">
+            <div>
+                <strong style="font-size: 1.1rem;">${quiz.subject}</strong> - ${quiz.difficulty}
+                <br>
+                <small style="color: var(--text-secondary);">${quiz.date} at ${quiz.time}</small>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 1.8rem; font-weight: 700; background: var(--ps5-gaming-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">${quiz.score.percentage}%</div>
+                <small style="color: var(--text-secondary);">${quiz.score.correct}/${quiz.score.total} correct</small>
+            </div>
+        </div>
     `).join('');
-  } else {
-    incorrectDetails.classList.add('hidden');
-    incorrectList.innerHTML = '';
-  }
-
-  quizScreen.classList.add('hidden');
-  resultScreen.classList.remove('hidden');
 }
 
-const genAI = new GoogleGenAI({ apiKey: 'AIzaSyDlhV81eD2TrHpPevy4RWlcTmFxPGyu6j0' });
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-async function fetchGemini() {
-  try {
-    const prompt = `You are an expert tutor. Explain in 120 words or less why each chosen answer is incorrect and why the correct answer is right. Return numbered points. Data: ${JSON.stringify(incorrectPairs)}`;
-    const { response } = await model.generateContent(prompt);
-    geminiResponse.textContent = response.text();
-  } catch (err) {
-    alert('Failed to fetch explanation.');
-    geminiResponse.textContent = 'Error retrieving explanation.';
-  } finally {
-    geminiResponse.classList.remove('hidden');
-    explainBtn.textContent = 'Done';
-  }
+function resetQuiz() {
+    currentQuiz = null;
+    currentQuestionIndex = 0;
+    userAnswers = [];
+    selectedDifficulty = null;
+    
+    elements.board.value = '';
+    elements.classSelect.value = '';
+    elements.stream.value = '';
+    elements.subject.value = '';
+    elements.streamGroup.classList.add('hidden');
+    
+    document.querySelectorAll('.difficulty-card').forEach(card => 
+        card.classList.remove('selected')
+    );
+    
+    clearMessage();
+    showSection('setupForm');
 }
+
+function showSection(sectionId) {
+    const sections = ['setupForm', 'loadingScreen', 'quizSection', 'resultsSection', 'reviewSection'];
+    sections.forEach(id => {
+        elements[id].classList.add('hidden');
+    });
+    elements[sectionId].classList.remove('hidden');
+}
+
+updateHistory();
+updateSubjects();
+
+console.log('Thynx Studio Quiz Hub initialized with FLAT AI');
